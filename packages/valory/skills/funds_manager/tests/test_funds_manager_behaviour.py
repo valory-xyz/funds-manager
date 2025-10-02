@@ -135,7 +135,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             new_callable=mock.PropertyMock,
             return_value=MOCK_AGENT_ADDRESS,
         ):
-
             funds = cast(FundRequirements, behaviour.get_funds_status())
 
         assert behaviour._perform_w3_multicall.call_count == len(
