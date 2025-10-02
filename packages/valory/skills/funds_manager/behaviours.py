@@ -62,7 +62,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
         super().setup()
         self.context.shared_state[GET_FUNDS_STATUS_METHOD_NAME] = self.get_funds_status
 
-    def perform_w3_multicall(self, rpc_url: str, calls: List) -> List:
+    def _perform_w3_multicall(self, rpc_url: str, calls: List) -> List:
         """Do a multicall using w3_multicall."""
         w3 = Web3(Web3.HTTPProvider(rpc_url))
 
@@ -93,96 +93,134 @@ class FundsManagerBehaviour(SimpleBehaviour):
             return self.context.agent_address
         return self.safe_address
 
+    def _switch_out_account_names_for_addresses(
+        self, funds: FundRequirements
+    ) -> FundRequirements:
+        """Switch out account names for addresses in the given FundRequirements object."""
+        funds_with_addresses = copy.deepcopy(funds)
+
+        for _, chain_requirements in funds_with_addresses.items():
+            for account_name in list(chain_requirements.accounts.keys()):
+                account_address = self._get_account_address(account_name)
+                chain_requirements.accounts[account_address] = (
+                    chain_requirements.accounts.pop(account_name)
+                )
+
+        return funds_with_addresses
+
+    def _get_balances(
+        self,
+        chain_name: str,
+        balance_calls: List[tuple],
+    ) -> List:
+        # Execute multicall for all balances at once
+        return self._perform_w3_multicall(
+            self.params.rpc_urls[chain_name], [call for _, _, call in balance_calls]
+        )
+
+    def _get_decimals_map(self, chain_name: str, decimals_calls: dict) -> dict:
+        """Get a map of token address to decimals."""
+        # Execute multicall for all ERC20 decimals at once
+        decimals_results = self._perform_w3_multicall(
+            self.params.rpc_urls[chain_name], list(decimals_calls.values())
+        )
+
+        decimals_map = {
+            token_address: value
+            for token_address, value in zip(decimals_calls.keys(), decimals_results)
+        }
+        return decimals_map
+
+    def _get_native_balance_call_tuple(
+        self, account_address: str, token_address: str
+    ) -> tuple:
+        """Get the balance call tuple for the given account and token."""
+        return (
+            account_address,
+            token_address,
+            W3Multicall.Call(
+                MULTICALL_ADDR,
+                NATIVE_BALANCE_ABI,
+                [account_address],
+            ),
+        )
+
+    def _get_erc20_balance_call_tuple(
+        self, account_address: str, token_address: str
+    ) -> tuple:
+        """Get the balance call tuple for the given account and token."""
+        return (
+            account_address,
+            token_address,
+            W3Multicall.Call(token_address, ERC20_BALANCE_ABI, [account_address]),
+        )
+
     def get_funds_status(self) -> FundRequirements:
-        """Get the current funds status."""
+        """Get the current funds status, using chain-level multicalls."""
 
-        funds = copy.deepcopy(self.fund_requirements)
+        funds = self._switch_out_account_names_for_addresses(self.fund_requirements)
 
-        for (
-            chain_name,
-            chain_requirements,
-        ) in self.fund_requirements.items():
+        for chain_name, chain_requirements in funds.items():
+            # Collect all calls for this chain
+            balance_calls = []
+            decimals_calls = {}
+            token_mapping = {}  # (account_name, token_address) -> TokenRequirement
 
             for (
-                account_name,
+                account_address,
                 account_requirements,
             ) in chain_requirements.accounts.items():
-
-                account_address = self._get_account_address(account_name)
-
-                calls = []
-                decimals_calls = {}
-                decimals_map = {}
 
                 for (
                     token_address,
                     token_requirements,
                 ) in account_requirements.tokens.items():
+                    token_mapping[(account_address, token_address)] = token_requirements
+
                     if token_requirements.is_native:
-                        # Native tokens: prepare multicall for balance
-                        balance_call = W3Multicall.Call(
-                            MULTICALL_ADDR,
-                            NATIVE_BALANCE_ABI,
-                            [account_address],
+                        # Native: balance call
+                        balance_calls.append(
+                            self._get_native_balance_call_tuple(
+                                account_address, token_address
+                            )
                         )
-
-                        decimals_map[token_address] = NATIVE_DECIMALS
-
                     else:
-                        # ERC20: prepare multicall for balance
-                        balance_call = W3Multicall.Call(
-                            token_address,
-                            ERC20_BALANCE_ABI,
-                            [account_address],
+                        # ERC20: balance call
+                        balance_calls.append(
+                            self._get_erc20_balance_call_tuple(
+                                account_address, token_address
+                            )
                         )
-                        # ERC20: prepare multicall for decimals
-                        decimals_call = W3Multicall.Call(
+                        # ERC20: decimals call
+                        decimals_calls[token_address] = W3Multicall.Call(
                             token_address, ERC20_DECIMALS_ABI
                         )
 
-                        decimals_calls[token_address] = decimals_call
-                    calls.append((token_address, token_requirements, balance_call))
+            balances = self._get_balances(chain_name, balance_calls)
 
-                # Execute multicall for balances
-                balances = self.perform_w3_multicall(
-                    self.params.rpc_urls[chain_name], [call for _, _, call in calls]
+            decimals_map = self._get_decimals_map(chain_name, decimals_calls)
+
+            # Fill in balances, deficits, and decimals
+            for (account_address, token_address, _), balance in zip(
+                balance_calls, balances
+            ):
+                balance = int(balance or 0)
+                token_requirement: TokenRequirement = token_mapping[
+                    (account_address, token_address)
+                ]
+
+                deficit = (
+                    max(token_requirement.topup - balance, 0)
+                    if balance < token_requirement.threshold
+                    else 0
                 )
 
-                # Execute multicall for decimals (only ERC20)
-                decimals = self.perform_w3_multicall(
-                    self.params.rpc_urls[chain_name], list(decimals_calls.values())
+                token_requirement.balance = balance
+                token_requirement.deficit = deficit
+                token_requirement.decimals = (
+                    NATIVE_DECIMALS
+                    if token_requirement.is_native
+                    else decimals_map[token_address]
                 )
-
-                # Map decimals back to token addresses
-                decimals_map.update(
-                    {
-                        token_address: value
-                        for token_address, value in zip(decimals_calls.keys(), decimals)
-                    }
-                )
-
-                funds[chain_name].accounts[account_address] = funds[
-                    chain_name
-                ].accounts.pop(account_name)
-
-                for (
-                    token_address,
-                    token_requirements,
-                    _,
-                ), balance in zip(calls, balances):
-                    balance = int(balance or 0)
-                    deficit = (
-                        max(token_requirements.topup - balance, 0)
-                        if balance < token_requirements.threshold
-                        else 0
-                    )
-                    token_requirement: TokenRequirement = (
-                        funds[chain_name]
-                        .accounts[account_address]
-                        .tokens[token_address]
-                    )
-                    token_requirement.balance = balance
-                    token_requirement.deficit = deficit
-                    token_requirement.decimals = decimals_map[token_address]
 
         return funds
