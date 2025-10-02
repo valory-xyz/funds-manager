@@ -32,5 +32,6 @@ models:
     class_name: Params
 dependencies:
   web3: {}
+  w3multicall: {}
 is_abstract: false
 customs: []
