@@ -33,5 +33,6 @@ models:
 dependencies:
   web3: {}
   w3multicall: {}
+  pydantic: {}
 is_abstract: false
 customs: []
