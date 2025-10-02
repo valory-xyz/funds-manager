@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2025 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the model 'state' for the 'funds_manager' skill."""
+from typing import Any, Dict, ItemsView, Iterator, Optional
+
+from aea.exceptions import enforce
+from aea.skills.base import Model
+from pydantic import BaseModel, RootModel  # type: ignore[import]
+
+from packages.valory.skills.abstract_round_abci.utils import check_type
+
+
+NATIVE_ADDRESSES = [
+    "0x0000000000000000000000000000000000000000",
+    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+]
+
+AGENT_ACCOUNT_NAME = "agent"
+SAFE_ACCOUNT_NAME = "safe"
+ACCOUNTS = [AGENT_ACCOUNT_NAME, SAFE_ACCOUNT_NAME]
+
+BALANCE_KEY = "balance"
+DEFICIT_KEY = "deficit"
+
+
+class TokenRequirement(BaseModel):
+    """Balance requirements for a specific token in an account."""
+
+    topup: int
+    threshold: int
+    is_native: bool
+    balance: Optional[int] = None
+    deficit: Optional[int] = None
+    decimals: Optional[int] = None
+
+
+class AccountRequirements(BaseModel):
+    """All token requirements for a single account address."""
+
+    tokens: Dict[str, TokenRequirement] = {}
+
+
+class ChainRequirements(BaseModel):
+    """All account requirements for a single chain."""
+
+    accounts: Dict[str, AccountRequirements] = {}
+
+
+class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
+    """All fund requirements for all accounts."""
+
+    def __getitem__(self, key: str) -> ChainRequirements:
+        """Get chain requirements by chain name."""
+        return self.root[key]
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over the chain names."""
+        return iter(self.root)
+
+    def items(self) -> ItemsView[str, ChainRequirements]:
+        """Get the items view of the root dictionary."""
+        return self.root.items()
+
+    @classmethod
+    def from_dict(cls, fund_dict: Dict[str, Any]) -> "FundRequirements":
+        """Create 'FundRequirements' from a dictionary."""
+        fund_requirements = {}
+        for chain, accounts in fund_dict.items():
+            chain_obj = {}
+            if sorted(list(accounts.keys())) != ACCOUNTS:
+                raise ValueError(
+                    f"Each chain must have the accounts {ACCOUNTS} and only these accounts, got {list(accounts.keys())} for chain {chain}."
+                )
+            for account_name, tokens in accounts.items():
+                token_objs = {}
+                for token_address, token_data in tokens.items():
+                    is_native = token_address in NATIVE_ADDRESSES
+                    token_objs[token_address] = TokenRequirement(
+                        **token_data,
+                        is_native=is_native,
+                    )
+                chain_obj[account_name] = AccountRequirements(tokens=token_objs)
+            fund_requirements[chain] = ChainRequirements(accounts=chain_obj)
+        return cls(**fund_requirements)
+
+    def get_response_body(self) -> Dict[str, Any]:
+        """Convert to dict with flattened accounts/tokens and stringified balances/deficits."""
+        raw = self.model_dump(
+            exclude={
+                "__all__": {
+                    "accounts": {
+                        "__all__": {
+                            "tokens": {"__all__": {"topup", "threshold", "is_native"}}
+                        }
+                    }
+                }
+            }
+        )
+
+        def flatten(obj: Any) -> Any:
+            if isinstance(obj, dict):
+                new_obj = {}
+                for k, v in obj.items():
+                    if isinstance(v, dict):
+                        # flatten accounts/tokens layers
+                        if "accounts" in v:
+                            new_obj[k] = flatten(v["accounts"])
+                        elif "tokens" in v:
+                            new_obj[k] = flatten(v["tokens"])
+                        else:
+                            new_obj[k] = flatten(v)
+                    elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(
+                        v, (int, float)
+                    ):
+                        new_obj[k] = str(v)
+                    else:
+                        new_obj[k] = v
+                return new_obj
+            return obj
+
+        return flatten(raw)
+
+
+class Params(Model):
+    """Parameters."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the parameters' object."""
+        self.rpc_urls: Dict[str, str] = self._ensure_get(
+            "rpc_urls", kwargs, Dict[str, str]
+        )
+        self.safe_address: str = self._ensure_get("safe_address", kwargs, str)
+        self.fund_requirements: FundRequirements = FundRequirements.from_dict(
+            self._ensure_get("fund_requirements", kwargs, Dict[str, Any])
+        )
+
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def _ensure_get(cls, key: str, kwargs: Dict, type_: Any) -> Any:
+        """Ensure that the parameters are set, and return them without popping the key."""
+        enforce("skill_context" in kwargs, "Only use on models!")
+        skill_id = kwargs["skill_context"].skill_id
+        enforce(
+            key in kwargs,
+            f"{key!r} of type {type_!r} required, but it is not set in `models.params.args` of `skill.yaml` of `{skill_id}`",
+        )
+        value = kwargs.get(key, None)
+        try:
+            check_type(key, value, type_)
+        except TypeError:  # pragma: nocover
+            enforce(
+                False,
+                f"{key!r} must be a {type_}, but type {type(value)} was found in `models.params.args` of `skill.yaml` of `{skill_id}`",
+            )
+        return value

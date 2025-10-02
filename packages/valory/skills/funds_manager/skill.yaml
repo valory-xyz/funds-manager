@@ -1,0 +1,36 @@
+name: funds_manager
+author: valory
+version: 0.1.0
+type: skill
+description: A skill to track agent funds.
+license: Apache-2.0
+aea_version: '>=1.0.0, <2.0.0'
+fingerprint:
+  __init__.py: bafybeiglhekx55noix6x6rmng7hsoqqpgythltdcocrmsxbvpdfi6kq6ye
+  behaviours.py: bafybeihdws5s467u7xgrsfqewbubfpjs3ivk5hv3yvzo4fkxlj2pdj4ype
+  models.py: bafybeihydyt4iin65bqxfrxvdjrxgklkcryegumldybdtgzegtmywd2zrq
+  tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
+  tests/data_for_tests.py: bafybeicegkss2jyyjfbaclonggaxbkgvlq4lg7qxmotqhn5zxxmh77zvte
+  tests/test_funds_manager_behaviour.py: bafybeigmbijqhl4zexdholssut2hunqxdcvqz3pyl7dj7ddpuw43nz5fru
+fingerprint_ignore_patterns: []
+connections: []
+contracts: []
+protocols: []
+skills:
+- valory/abstract_round_abci:0.1.0:bafybeiey45kkbniukmtpdjduwazpyygaiayeo7mh3tu6wfbau2bxvuljmy
+behaviours:
+  funds_manager:
+    args: {}
+    class_name: FundsManagerBehaviour
+handlers: {}
+models:
+  params:
+    args:
+      fund_requirements: {}
+      rpc_urls: {}
+      safe_address: ''
+    class_name: Params
+dependencies:
+  web3: {}
+is_abstract: false
+customs: []
