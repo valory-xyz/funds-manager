@@ -18,7 +18,7 @@
 # ------------------------------------------------------------------------------
 """This module contains the behaviours for the 'funds_manager' skill."""
 import copy
-from typing import List, cast
+from typing import List, Tuple, cast
 
 from aea.skills.behaviours import SimpleBehaviour
 from w3multicall.multicall import W3Multicall  # type: ignore[import]
@@ -26,6 +26,7 @@ from web3 import Web3
 
 from packages.valory.skills.funds_manager.models import (
     AGENT_ACCOUNT_NAME,
+    AccountRequirements,
     FundRequirements,
     Params,
     TokenRequirement,
@@ -146,6 +147,38 @@ class FundsManagerBehaviour(SimpleBehaviour):
             W3Multicall.Call(token_address, ERC20_BALANCE_ABI, [account_address]),
         )
 
+    def _construct_balance_calls(
+        self,
+        account_address: str,
+        account_requirements: AccountRequirements,
+    ) -> Tuple:
+        """Construct balance calls, decimals calls, and token mapping for the given account."""
+        balance_calls = []
+        decimals_calls = {}
+        token_mapping = {}  # (account_address, token_address) -> TokenRequirement
+        for (
+            token_address,
+            token_requirements,
+        ) in account_requirements.tokens.items():
+            token_mapping[(account_address, token_address)] = token_requirements
+
+            if token_requirements.is_native:
+                # Native: balance call
+                balance_calls.append(
+                    self._get_native_balance_call_tuple(account_address, token_address)
+                )
+            else:
+                # ERC20: balance call
+                balance_calls.append(
+                    self._get_erc20_balance_call_tuple(account_address, token_address)
+                )
+                # ERC20: decimals call
+                decimals_calls[token_address] = W3Multicall.Call(
+                    token_address, ERC20_DECIMALS_ABI
+                )
+
+        return balance_calls, decimals_calls, token_mapping
+
     def get_funds_status(self) -> FundRequirements:
         """Get the current funds status, using chain-level multicalls."""
 
@@ -162,30 +195,12 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 account_requirements,
             ) in chain_requirements.accounts.items():
 
-                for (
-                    token_address,
-                    token_requirements,
-                ) in account_requirements.tokens.items():
-                    token_mapping[(account_address, token_address)] = token_requirements
-
-                    if token_requirements.is_native:
-                        # Native: balance call
-                        balance_calls.append(
-                            self._get_native_balance_call_tuple(
-                                account_address, token_address
-                            )
-                        )
-                    else:
-                        # ERC20: balance call
-                        balance_calls.append(
-                            self._get_erc20_balance_call_tuple(
-                                account_address, token_address
-                            )
-                        )
-                        # ERC20: decimals call
-                        decimals_calls[token_address] = W3Multicall.Call(
-                            token_address, ERC20_DECIMALS_ABI
-                        )
+                balance_calls_account, decimals_calls_account, token_mapping_account = (
+                    self._construct_balance_calls(account_address, account_requirements)
+                )
+                balance_calls.extend(balance_calls_account)
+                decimals_calls.update(decimals_calls_account)
+                token_mapping.update(token_mapping_account)
 
             balances = self._get_balances(chain_name, balance_calls)
 
