@@ -17,7 +17,8 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the model 'state' for the 'funds_manager' skill."""
+"""This module contains the models for the 'funds_manager' skill."""
+
 from typing import Any, Dict, ItemsView, Iterator, Optional
 
 from aea.exceptions import enforce
