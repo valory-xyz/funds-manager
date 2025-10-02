@@ -32,21 +32,12 @@ from packages.valory.skills.funds_manager.models import (
 )
 
 
-CHAIN_NAME_TO_ID = {
-    "ethereum": 1,
-    "gnosis": 100,
-}
-
-
 ERC20_DECIMALS_ABI = "decimals()(uint8)"
 NATIVE_BALANCE_ABI = "getEthBalance(address)(uint256)"
 ERC20_BALANCE_ABI = "balanceOf(address)(uint256)"
 NATIVE_DECIMALS = 18
 
 MULTICALL_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
-
-FIVE_MINUTES_IN_SECONDS = 300
-
 
 GET_FUNDS_STATUS_METHOD_NAME = "get_funds_status"
 
