@@ -80,27 +80,43 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         return self.root.items()
 
     @classmethod
+    def build_account_requirements(
+        cls,
+        tokens: Dict[str, Dict[str, int]],
+    ) -> Optional[TokenRequirement]:
+        """Get the token requirement for a specific chain/account/token."""
+        token_objs = {}
+        for token_address, token_data in tokens.items():
+            is_native = token_address in NATIVE_ADDRESSES
+            token_objs[token_address] = TokenRequirement(
+                **token_data,
+                is_native=is_native,
+            )
+        return AccountRequirements(tokens=token_objs)
+
+    @classmethod
+    def build_chain_requirements(
+        cls,
+        accounts: Dict[str, Dict[str, Dict[str, int]]],
+    ) -> ChainRequirements:
+        """Get the chain requirements for a specific chain."""
+        chain_obj = {}
+        for account_name, tokens in accounts.items():
+            chain_obj[account_name] = cls.build_account_requirements(tokens)
+        return ChainRequirements(accounts=chain_obj)
+
+    @classmethod
     def from_dict(cls, fund_dict: Dict[str, Any]) -> "FundRequirements":
         """Create 'FundRequirements' from a dictionary."""
         fund_requirements = {}
         validation_errors = []
         for chain, accounts in fund_dict.items():
-            chain_obj = {}
             if accounts.keys() != ACCOUNTS:
                 validation_errors.append(
                     f"{chain} chain can only have accounts {list(ACCOUNTS)}, got {list(accounts.keys())}."
                 )
                 continue
-            for account_name, tokens in accounts.items():
-                token_objs = {}
-                for token_address, token_data in tokens.items():
-                    is_native = token_address in NATIVE_ADDRESSES
-                    token_objs[token_address] = TokenRequirement(
-                        **token_data,
-                        is_native=is_native,
-                    )
-                chain_obj[account_name] = AccountRequirements(tokens=token_objs)
-            fund_requirements[chain] = ChainRequirements(accounts=chain_obj)
+            fund_requirements[chain] = cls.build_chain_requirements(accounts)
 
         if validation_errors:
             raise ValueError(" ".join(validation_errors))
