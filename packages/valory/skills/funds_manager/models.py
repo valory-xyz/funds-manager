@@ -17,7 +17,8 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the model 'state' for the 'funds_manager' skill."""
+"""This module contains the models for the 'funds_manager' skill."""
+
 from typing import Any, Dict, ItemsView, Iterator, Optional
 
 from aea.exceptions import enforce
@@ -34,7 +35,7 @@ NATIVE_ADDRESSES = [
 
 AGENT_ACCOUNT_NAME = "agent"
 SAFE_ACCOUNT_NAME = "safe"
-ACCOUNTS = [AGENT_ACCOUNT_NAME, SAFE_ACCOUNT_NAME]
+ACCOUNTS = frozenset({AGENT_ACCOUNT_NAME, SAFE_ACCOUNT_NAME})
 
 BALANCE_KEY = "balance"
 DEFICIT_KEY = "deficit"
@@ -79,25 +80,46 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         return self.root.items()
 
     @classmethod
+    def build_account_requirements(
+        cls,
+        tokens: Dict[str, Dict[str, int]],
+    ) -> Optional[TokenRequirement]:
+        """Get the token requirement for a specific chain/account/token."""
+        token_objs = {}
+        for token_address, token_data in tokens.items():
+            is_native = token_address in NATIVE_ADDRESSES
+            token_objs[token_address] = TokenRequirement(
+                **token_data,
+                is_native=is_native,
+            )
+        return AccountRequirements(tokens=token_objs)
+
+    @classmethod
+    def build_chain_requirements(
+        cls,
+        accounts: Dict[str, Dict[str, Dict[str, int]]],
+    ) -> ChainRequirements:
+        """Get the chain requirements for a specific chain."""
+        chain_obj = {}
+        for account_name, tokens in accounts.items():
+            chain_obj[account_name] = cls.build_account_requirements(tokens)
+        return ChainRequirements(accounts=chain_obj)
+
+    @classmethod
     def from_dict(cls, fund_dict: Dict[str, Any]) -> "FundRequirements":
         """Create 'FundRequirements' from a dictionary."""
         fund_requirements = {}
+        validation_errors = []
         for chain, accounts in fund_dict.items():
-            chain_obj = {}
-            if sorted(list(accounts.keys())) != ACCOUNTS:
-                raise ValueError(
-                    f"Each chain must have the accounts {ACCOUNTS} and only these accounts, got {list(accounts.keys())} for chain {chain}."
+            if accounts.keys() != ACCOUNTS:
+                validation_errors.append(
+                    f"{chain} chain can only have accounts {list(ACCOUNTS)}, got {list(accounts.keys())}."
                 )
-            for account_name, tokens in accounts.items():
-                token_objs = {}
-                for token_address, token_data in tokens.items():
-                    is_native = token_address in NATIVE_ADDRESSES
-                    token_objs[token_address] = TokenRequirement(
-                        **token_data,
-                        is_native=is_native,
-                    )
-                chain_obj[account_name] = AccountRequirements(tokens=token_objs)
-            fund_requirements[chain] = ChainRequirements(accounts=chain_obj)
+                continue
+            fund_requirements[chain] = cls.build_chain_requirements(accounts)
+
+        if validation_errors:
+            raise ValueError(" ".join(validation_errors))
         return cls(**fund_requirements)
 
     def get_response_body(self) -> Dict[str, Any]:
@@ -115,25 +137,24 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         )
 
         def flatten(obj: Any) -> Any:
-            if isinstance(obj, dict):
-                new_obj = {}
-                for k, v in obj.items():
-                    if isinstance(v, dict):
-                        # flatten accounts/tokens layers
-                        if "accounts" in v:
-                            new_obj[k] = flatten(v["accounts"])
-                        elif "tokens" in v:
-                            new_obj[k] = flatten(v["tokens"])
-                        else:
-                            new_obj[k] = flatten(v)
-                    elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(
-                        v, (int, float)
-                    ):
-                        new_obj[k] = str(v)
+            if not isinstance(obj, dict):
+                return obj
+
+            new_obj = {}
+            for k, v in obj.items():
+                if isinstance(v, dict):
+                    # flatten accounts/tokens layers
+                    if "accounts" in v:
+                        new_obj[k] = flatten(v["accounts"])
+                    elif "tokens" in v:
+                        new_obj[k] = flatten(v["tokens"])
                     else:
-                        new_obj[k] = v
-                return new_obj
-            return obj
+                        new_obj[k] = flatten(v)
+                elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(v, (int, float)):
+                    new_obj[k] = str(v)
+                else:
+                    new_obj[k] = v
+            return new_obj
 
         return flatten(raw)
 
