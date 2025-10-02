@@ -35,7 +35,7 @@ NATIVE_ADDRESSES = [
 
 AGENT_ACCOUNT_NAME = "agent"
 SAFE_ACCOUNT_NAME = "safe"
-ACCOUNTS = [AGENT_ACCOUNT_NAME, SAFE_ACCOUNT_NAME]
+ACCOUNTS = frozenset({AGENT_ACCOUNT_NAME, SAFE_ACCOUNT_NAME})
 
 BALANCE_KEY = "balance"
 DEFICIT_KEY = "deficit"
@@ -85,7 +85,7 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         fund_requirements = {}
         for chain, accounts in fund_dict.items():
             chain_obj = {}
-            if sorted(list(accounts.keys())) != ACCOUNTS:
+            if accounts.keys() != ACCOUNTS:
                 raise ValueError(
                     f"Each chain must have the accounts {ACCOUNTS} and only these accounts, got {list(accounts.keys())} for chain {chain}."
                 )
