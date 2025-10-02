@@ -1,25 +1,3 @@
-# -*- coding: utf-8 -*-
-# ------------------------------------------------------------------------------
-#
-#   Copyright 2025 Valory AG
-#
-#   Licensed under the Apache License, Version 2.0 (the "License");
-#   you may not use this file except in compliance with the License.
-#   You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#   Unless required by applicable law or agreed to in writing, software
-#   distributed under the License is distributed on an "AS IS" BASIS,
-#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#   See the License for the specific language governing permissions and
-#   limitations under the License.
-#
-# ------------------------------------------------------------------------------
-
-"""This module contains test data for funds manager skill."""
-
-
 MOCK_AGENT_ADDRESS = "0x1111111111111111111111111111111111111111"
 MOCK_SAFE_ADDRESS = "0x2222222222222222222222222222222222222222"
 
@@ -91,18 +69,16 @@ OPTIMUS_INITIAL_FUND_REQUIREMENTS = {
     },
 }
 
+
 OPTIMUS_MULTICALL_RETURN_VALUES = [
-    [0, 2500000000000000],  # eth, usdc agent balance on optimism
+    # optimism
+    [0, 2500000000000000, 0, 0],  # agent-eth, agent-usdc, safe-eth, safe-usdc
     [6],  # usdc decimals
-    [0, 0],  # eth, usdc safe balance on optimism
+    # base
+    [0, 0, 2500000000000000, 0],  # agent-eth, agent-usdc, safe-eth, safe-usdc
     [6],  # usdc decimals
-    [0, 0],  # eth, usdc agent balance on base
-    [6],  # usdc decimals
-    [2500000000000000, 0],  # eth, usdc safe balance on base
-    [6],  # usdc decimals
-    [0, 0],  # eth, usdc agent balance on mode
-    [6],  # usdc decimals
-    [0, 0],  # eth, usdc safe balance on mode
+    # mode
+    [0, 0, 0, 0],  # # agent-eth, agent-usdc, safe-eth, safe-usdc
     [6],  # usdc decimals
 ]
 
@@ -207,9 +183,7 @@ TRADER_INITIAL_FUND_REQUIREMENTS = {
 }
 
 TRADER_MULTICALL_RETURN_VALUES = [
-    [50000000000000000 - 1],  # agent balance on gnosis
-    [18],  # xdai decimals
-    [2500000000000000000],  # safe balance on gnosis
+    [50000000000000000 - 1, 2500000000000000000],  # agent, safe balance on gnosis
     [18],  # xdai decimals
 ]
 

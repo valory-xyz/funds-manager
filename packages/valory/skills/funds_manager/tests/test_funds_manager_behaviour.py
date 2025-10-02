@@ -127,7 +127,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         )
 
         # patch the instance method
-        behaviour.perform_w3_multicall = mock.Mock(side_effect=mock_multicall_response)  # type: ignore
+        behaviour._perform_w3_multicall = mock.Mock(side_effect=mock_multicall_response)  # type: ignore
 
         with mock.patch.object(
             type(behaviour.context),
@@ -138,6 +138,8 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
 
             funds = cast(FundRequirements, behaviour.get_funds_status())
 
-        assert behaviour.perform_w3_multicall.call_count == len(mock_multicall_response)
+        assert behaviour._perform_w3_multicall.call_count == len(
+            mock_multicall_response
+        )
 
         assert funds.get_response_body() == funds_response
