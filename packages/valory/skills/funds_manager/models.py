@@ -137,25 +137,24 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         )
 
         def flatten(obj: Any) -> Any:
-            if isinstance(obj, dict):
-                new_obj = {}
-                for k, v in obj.items():
-                    if isinstance(v, dict):
-                        # flatten accounts/tokens layers
-                        if "accounts" in v:
-                            new_obj[k] = flatten(v["accounts"])
-                        elif "tokens" in v:
-                            new_obj[k] = flatten(v["tokens"])
-                        else:
-                            new_obj[k] = flatten(v)
-                    elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(
-                        v, (int, float)
-                    ):
-                        new_obj[k] = str(v)
+            if not isinstance(obj, dict):
+                return obj
+
+            new_obj = {}
+            for k, v in obj.items():
+                if isinstance(v, dict):
+                    # flatten accounts/tokens layers
+                    if "accounts" in v:
+                        new_obj[k] = flatten(v["accounts"])
+                    elif "tokens" in v:
+                        new_obj[k] = flatten(v["tokens"])
                     else:
-                        new_obj[k] = v
-                return new_obj
-            return obj
+                        new_obj[k] = flatten(v)
+                elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(v, (int, float)):
+                    new_obj[k] = str(v)
+                else:
+                    new_obj[k] = v
+            return new_obj
 
         return flatten(raw)
 
