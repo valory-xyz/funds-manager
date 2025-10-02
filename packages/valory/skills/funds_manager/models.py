@@ -83,12 +83,14 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
     def from_dict(cls, fund_dict: Dict[str, Any]) -> "FundRequirements":
         """Create 'FundRequirements' from a dictionary."""
         fund_requirements = {}
+        validation_errors = []
         for chain, accounts in fund_dict.items():
             chain_obj = {}
             if accounts.keys() != ACCOUNTS:
-                raise ValueError(
-                    f"Each chain must have the accounts {ACCOUNTS} and only these accounts, got {list(accounts.keys())} for chain {chain}."
+                validation_errors.append(
+                    f"{chain} chain can only have accounts {list(ACCOUNTS)}, got {list(accounts.keys())}."
                 )
+                continue
             for account_name, tokens in accounts.items():
                 token_objs = {}
                 for token_address, token_data in tokens.items():
@@ -99,6 +101,9 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
                     )
                 chain_obj[account_name] = AccountRequirements(tokens=token_objs)
             fund_requirements[chain] = ChainRequirements(accounts=chain_obj)
+
+        if validation_errors:
+            raise ValueError(" ".join(validation_errors))
         return cls(**fund_requirements)
 
     def get_response_body(self) -> Dict[str, Any]:
