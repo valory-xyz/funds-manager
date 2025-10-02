@@ -3802,6 +3802,22 @@ docs = ["furo (>=2023.7.26)", "proselint (>=0.13)", "sphinx (>=7.1.2,!=7.3)", "s
 test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7)", "packaging (>=23.1)", "pytest (>=7.4)", "pytest-env (>=0.8.2)", "pytest-freezer (>=0.4.8) ; platform_python_implementation == \"PyPy\" or platform_python_implementation == \"GraalVM\" or platform_python_implementation == \"CPython\" and sys_platform == \"win32\" and python_version >= \"3.13\"", "pytest-mock (>=3.11.1)", "pytest-randomly (>=3.12)", "pytest-timeout (>=2.1)", "setuptools (>=68)", "time-machine (>=2.10) ; platform_python_implementation == \"CPython\""]
 
 [[package]]
+name = "w3multicall"
+version = "0.3.1"
+description = "Python interface and utilities for Solidity multicall contract"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "w3multicall-0.3.1-py3-none-any.whl", hash = "sha256:04f95d6ee64c9b2ab3bc9d7a3b2bac4a717fe9f8523f5aba6e7550086efcdad2"},
+    {file = "w3multicall-0.3.1.tar.gz", hash = "sha256:24c7bf3aac8cb8f8c62dd555212b3b5e87d6e7cf9cc4b3f3769a819bb9c55846"},
+]
+
+[package.dependencies]
+requests = "*"
+web3 = "*"
+
+[[package]]
 name = "watchdog"
 version = "6.0.0"
 description = "Filesystem events monitoring"
@@ -4149,4 +4165,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "<3.12,>=3.9"
-content-hash = "deb0c0942fb22127c4e6d1ceb6621f97395c906e3bc397f043a1ead91c3f260d"
+content-hash = "997a32a4e1ca521c85a136398fcd2f032d79950518bebe3ecaecb97318b9c342"
