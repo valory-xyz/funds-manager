@@ -70,7 +70,9 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 "params": {
                     "args": {
                         "fund_requirements": TRADER_INITIAL_FUND_REQUIREMENTS,
-                        "safe_address": MOCK_SAFE_ADDRESS,
+                        "setup": {
+                            "safe_contract_address": MOCK_SAFE_ADDRESS,
+                        },
                         "rpc_urls": MOCK_RPC_URLS,
                     },
                 }
