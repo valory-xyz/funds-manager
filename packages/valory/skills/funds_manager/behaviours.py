@@ -94,9 +94,9 @@ class FundsManagerBehaviour(SimpleBehaviour):
         for _, chain_requirements in funds_with_addresses.items():
             for account_name in list(chain_requirements.accounts.keys()):
                 account_address = self._get_account_address(account_name)
-                chain_requirements.accounts[account_address] = (
-                    chain_requirements.accounts.pop(account_name)
-                )
+                chain_requirements.accounts[
+                    account_address
+                ] = chain_requirements.accounts.pop(account_name)
 
         return funds_with_addresses
 
@@ -194,10 +194,11 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 account_address,
                 account_requirements,
             ) in chain_requirements.accounts.items():
-
-                balance_calls_account, decimals_calls_account, token_mapping_account = (
-                    self._construct_balance_calls(account_address, account_requirements)
-                )
+                (
+                    balance_calls_account,
+                    decimals_calls_account,
+                    token_mapping_account,
+                ) = self._construct_balance_calls(account_address, account_requirements)
                 balance_calls.extend(balance_calls_account)
                 decimals_calls.update(decimals_calls_account)
                 token_mapping.update(token_mapping_account)
