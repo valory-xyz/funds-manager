@@ -1,0 +1,39 @@
+name: funds_manager
+author: valory
+version: 0.1.0
+type: skill
+description: A skill to track agent funds.
+license: Apache-2.0
+aea_version: '>=1.0.0, <2.0.0'
+fingerprint:
+  __init__.py: bafybeiglhekx55noix6x6rmng7hsoqqpgythltdcocrmsxbvpdfi6kq6ye
+  behaviours.py: bafybeihc3fpkwo5iiqh7trlcvmm7sulfwy4vfh2thq7p4w55dvvhghst3e
+  models.py: bafybeig5xysfijxbnnn7a2eelut77qiba7k264i67qkpwwe62fxn7mwlfi
+  tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
+  tests/data_for_tests.py: bafybeiaph2btm3rsw6zyatk34zqhqnqswxkvym2zm7m375sk5ch44ikjli
+  tests/test_funds_manager_behaviour.py: bafybeif3dkv6zxyky3kd7idsh4hetmjy5imdxixtmaodqrbegicehxkdtq
+fingerprint_ignore_patterns: []
+connections: []
+contracts: []
+protocols: []
+skills:
+- valory/abstract_round_abci:0.1.0:bafybeiey45kkbniukmtpdjduwazpyygaiayeo7mh3tu6wfbau2bxvuljmy
+behaviours:
+  funds_manager:
+    args: {}
+    class_name: FundsManagerBehaviour
+handlers: {}
+models:
+  params:
+    args:
+      fund_requirements: {}
+      rpc_urls: {}
+      setup:
+        safe_contract_address: ''
+    class_name: Params
+dependencies:
+  web3: {}
+  w3multicall: {}
+  pydantic: {}
+is_abstract: false
+customs: []
