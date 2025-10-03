@@ -30,7 +30,7 @@ from packages.valory.skills.abstract_round_abci.utils import check_type
 
 NATIVE_ADDRESSES = [
     "0x0000000000000000000000000000000000000000",
-    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 ]
 
 AGENT_ACCOUNT_NAME = "agent"
@@ -87,7 +87,7 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         """Get the token requirement for a specific chain/account/token."""
         token_objs = {}
         for token_address, token_data in tokens.items():
-            is_native = token_address in NATIVE_ADDRESSES
+            is_native = token_address.lower() in NATIVE_ADDRESSES
             token_objs[token_address] = TokenRequirement(
                 **token_data,
                 is_native=is_native,
@@ -167,12 +167,22 @@ class Params(Model):
         self.rpc_urls: Dict[str, str] = self._ensure_get(
             "rpc_urls", kwargs, Dict[str, str]
         )
-        self.safe_address: str = self._ensure_get("safe_address", kwargs, str)
+        self.safe_address: str = self._get_safe_address(kwargs)
         self.fund_requirements: FundRequirements = FundRequirements.from_dict(
             self._ensure_get("fund_requirements", kwargs, Dict[str, Any])
         )
 
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def _get_safe_address(cls, kwargs: Dict) -> str:
+        """Get the safe address from the kwargs."""
+        setup = cls._ensure_get("setup", kwargs, dict)
+        enforce(
+            "safe_contract_address" in setup,
+            "safe_contract_address must be provided in setup param.",
+        )
+        return setup["safe_contract_address"]
 
     @classmethod
     def _ensure_get(cls, key: str, kwargs: Dict, type_: Any) -> Any:
