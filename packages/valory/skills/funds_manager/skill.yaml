@@ -8,10 +8,10 @@ aea_version: '>=1.0.0, <2.0.0'
 fingerprint:
   __init__.py: bafybeiglhekx55noix6x6rmng7hsoqqpgythltdcocrmsxbvpdfi6kq6ye
   behaviours.py: bafybeihc3fpkwo5iiqh7trlcvmm7sulfwy4vfh2thq7p4w55dvvhghst3e
-  models.py: bafybeibytugfiwkms7hvajeu3xnjiwpiuf675rcrf4pgyitgeszj2flu4u
+  models.py: bafybeig5xysfijxbnnn7a2eelut77qiba7k264i67qkpwwe62fxn7mwlfi
   tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
   tests/data_for_tests.py: bafybeiaph2btm3rsw6zyatk34zqhqnqswxkvym2zm7m375sk5ch44ikjli
-  tests/test_funds_manager_behaviour.py: bafybeieavqtv35jwdyvqx5ggrttnxwhr3pltinhxjtklu7zqqxp22wulii
+  tests/test_funds_manager_behaviour.py: bafybeif3dkv6zxyky3kd7idsh4hetmjy5imdxixtmaodqrbegicehxkdtq
 fingerprint_ignore_patterns: []
 connections: []
 contracts: []
