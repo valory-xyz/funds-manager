@@ -30,7 +30,7 @@ from packages.valory.skills.abstract_round_abci.utils import check_type
 
 NATIVE_ADDRESSES = [
     "0x0000000000000000000000000000000000000000",
-    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 ]
 
 AGENT_ACCOUNT_NAME = "agent"
@@ -87,7 +87,7 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         """Get the token requirement for a specific chain/account/token."""
         token_objs = {}
         for token_address, token_data in tokens.items():
-            is_native = token_address in NATIVE_ADDRESSES
+            is_native = token_address.lower() in NATIVE_ADDRESSES
             token_objs[token_address] = TokenRequirement(
                 **token_data,
                 is_native=is_native,
