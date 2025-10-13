@@ -211,8 +211,9 @@ class FundsManagerBehaviour(SimpleBehaviour):
             )
 
             # Split results
-            balance_results = results[: len(balance_calls)]
-            decimal_results = results[len(balance_calls) :]
+            balance_calls_end_index = len(balance_calls)
+            balance_results = results[:balance_calls_end_index]
+            decimal_results = results[balance_calls_end_index:]
 
             decimals_map = {
                 token_addr: res
