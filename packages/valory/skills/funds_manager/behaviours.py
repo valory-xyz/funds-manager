@@ -100,29 +100,6 @@ class FundsManagerBehaviour(SimpleBehaviour):
 
         return funds_with_addresses
 
-    def _get_balances(
-        self,
-        chain_name: str,
-        balance_calls: List[tuple],
-    ) -> List:
-        # Execute multicall for all balances at once
-        return self._perform_w3_multicall(
-            self.params.rpc_urls[chain_name], [call for _, _, call in balance_calls]
-        )
-
-    def _get_decimals_map(self, chain_name: str, decimals_calls: dict) -> dict:
-        """Get a map of token address to decimals."""
-        # Execute multicall for all ERC20 decimals at once
-        decimals_results = self._perform_w3_multicall(
-            self.params.rpc_urls[chain_name], list(decimals_calls.values())
-        )
-
-        decimals_map = {
-            token_address: value
-            for token_address, value in zip(decimals_calls.keys(), decimals_results)
-        }
-        return decimals_map
-
     def _get_native_balance_call_tuple(
         self, account_address: str, token_address: str
     ) -> tuple:
@@ -211,8 +188,9 @@ class FundsManagerBehaviour(SimpleBehaviour):
             )
 
             # Split results
-            balance_results = results[: len(balance_calls)]
-            decimal_results = results[len(balance_calls) :]
+            balance_calls_end_index = len(balance_calls)
+            balance_results = results[:balance_calls_end_index]
+            decimal_results = results[balance_calls_end_index:]
 
             decimals_map = {
                 token_addr: res
