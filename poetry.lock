@@ -2393,14 +2393,14 @@ web3 = ">=6.0.0,<7"
 
 [[package]]
 name = "open-aea-test-autonomy"
-version = "0.19.9"
+version = "0.19.11"
 description = "Plugin containing test tools for open-autonomy packages."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "open_aea_test_autonomy-0.19.9-py3-none-any.whl", hash = "sha256:44df50804dfed83b905d91532261b66217f1393db96653a4e374d47848d25bba"},
-    {file = "open_aea_test_autonomy-0.19.9.tar.gz", hash = "sha256:81b44b7fd9e8bd72efb05f773c3e5db8e5be8e5f888952f6682cea205ef2e26e"},
+    {file = "open_aea_test_autonomy-0.19.11-py3-none-any.whl", hash = "sha256:84ee0f4e078a32e78fd173414febf4523f98a9402070762b535bfcbbbc44b23e"},
+    {file = "open_aea_test_autonomy-0.19.11.tar.gz", hash = "sha256:e430ab334c5c59d6a882294ff599b7a96d71468f33d120f28619f824aab72373"},
 ]
 
 [package.dependencies]
@@ -4326,4 +4326,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "<3.12,>=3.9"
-content-hash = "f9dcd20f8cde1d10a2d367e6bacf3eb42d9b3cd1f38e205aa94485a1e24ba67d"
+content-hash = "e3284fc984633bc4d8888d8d42906423f85817fc7f750c87d5ee037208309f05"
