@@ -21,6 +21,7 @@
 
 import re
 from pathlib import Path
+from typing import Dict
 
 import pytest
 
@@ -46,14 +47,14 @@ class TestFundRequirementsModel:
         ],
     )
     def test_initialization_fails_with_wrong_fund_requirements(
-        self, fund_requirements, error_message
+        self, fund_requirements: Dict, error_message: str
     ) -> None:
         """Test that the model fails to initialize with wrong fund requirements."""
 
         with pytest.raises(ValueError, match=re.escape(error_message)):
             FundRequirements.from_dict(fund_requirements)
 
-    def test_initialization_valid(self, funds_dataset):
+    def test_initialization_valid(self, funds_dataset: Dict) -> None:
         """Test that valid fund requirements initialize correctly."""
         fund_requirements = funds_dataset["fund_requirements"]
         model = FundRequirements.from_dict(fund_requirements)
