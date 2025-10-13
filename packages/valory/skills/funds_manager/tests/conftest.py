@@ -33,7 +33,11 @@ def mock_safe_address() -> str:
 @pytest.fixture(autouse=True)
 def patch_agent_address(request):
     """Automatically patch `agent_address` for all tests in the class."""
-    test_instance = request.instance
+    test_instance = getattr(request, "instance", None)
+    if test_instance is None or not hasattr(test_instance, "behaviour"):
+        # skip fixture for tests without behaviour
+        yield
+        return
 
     with mock.patch.object(
         type(test_instance.behaviour.context),

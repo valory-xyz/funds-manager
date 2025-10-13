@@ -17,7 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the tests for valory/decision_maker_abci's base behaviour."""
+"""This module contains the tests for valory/fund_managers' behaviour."""
 
 from pathlib import Path
 from typing import Any, cast
