@@ -17,10 +17,10 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the tests for valory/decision_maker_abci's base behaviour."""
+"""This module contains the tests for valory/fund_managers' behaviour."""
 
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Dict, cast
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -76,7 +76,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         self.behaviour.setup()
         super().setup(**kwargs)
 
-    def test_safe_address(self, mock_safe_address) -> None:
+    def test_safe_address(self, mock_safe_address: str) -> None:
         """Test the `safe_address` property."""
         assert self.behaviour.safe_address == mock_safe_address
 
@@ -88,7 +88,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             self.behaviour.context.shared_state[GET_FUNDS_STATUS_METHOD_NAME]
         )
 
-    def test_get_funds_status(self, funds_dataset) -> None:
+    def test_get_funds_status(self, funds_dataset: Dict) -> None:
         """Test the `get_funds_status` method."""
         behaviour = self.behaviour
         fund_requirements = funds_dataset["fund_requirements"]
