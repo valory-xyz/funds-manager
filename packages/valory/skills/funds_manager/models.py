@@ -23,7 +23,7 @@ from typing import Any, Dict, ItemsView, Iterator, Optional
 
 from aea.exceptions import enforce
 from aea.skills.base import Model
-from pydantic import BaseModel, RootModel  # type: ignore[import]
+from pydantic import BaseModel, RootModel, ValidationError  # type: ignore[import]
 
 from packages.valory.skills.abstract_round_abci.utils import check_type
 
@@ -118,7 +118,11 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
                     f"{chain} chain can only have accounts {list(ACCOUNTS)}, got {list(accounts.keys())}."
                 )
                 continue
-            fund_requirements[chain] = cls.build_chain_requirements(accounts)
+            try:
+                fund_requirements[chain] = cls.build_chain_requirements(accounts)
+            except ValidationError as e:
+                validation_errors.append(f"Error in {chain} chain: {e}")
+                continue
 
         if validation_errors:
             raise ValueError(" ".join(validation_errors))

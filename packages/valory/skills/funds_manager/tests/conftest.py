@@ -37,7 +37,7 @@ def funds_dataset(request: pytest.FixtureRequest) -> dict:
             "multicall": data_for_tests.TRADER_MULTICALL_RETURN_VALUES,
             "id": request.param,
         }
-    elif request.param == "optimus":
+    if request.param == "optimus":
         return {
             "fund_requirements": data_for_tests.OPTIMUS_INITIAL_FUND_REQUIREMENTS,
             "funds_response": data_for_tests.OPTIMUS_FUNDS_RESPONSE,

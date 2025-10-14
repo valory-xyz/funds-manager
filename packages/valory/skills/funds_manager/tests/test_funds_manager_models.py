@@ -44,6 +44,10 @@ class TestFundRequirementsModel:
                 "chain can only have accounts",
             ),
             ({}, "Fund requirements cannot be empty."),
+            (
+                data_for_tests.INVALID_TRADER_TOKEN_REQUIREMENTS,
+                "1 validation error for TokenRequirement",
+            ),
         ],
     )
     def test_initialization_fails_with_wrong_fund_requirements(

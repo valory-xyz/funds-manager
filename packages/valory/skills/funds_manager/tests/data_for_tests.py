@@ -242,3 +242,20 @@ INVALID_TRADER_FUND_REQUIREMENTS = {
         },
     }
 }
+
+INVALID_TRADER_TOKEN_REQUIREMENTS = {
+    "gnosis": {
+        "agent": {
+            "0x0000000000000000000000000000000000000000": {
+                "topup": 100000000000000000,
+                "threshold": 50000000000000000,
+            }
+        },
+        "safe": {
+            "0x0000000000000000000000000000000000000000": {
+                "wrong_topup": 5000000000000000000,
+                "threshold": 2500000000000000000,
+            }
+        },
+    }
+}
