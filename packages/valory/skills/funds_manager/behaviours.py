@@ -18,7 +18,7 @@
 # ------------------------------------------------------------------------------
 """This module contains the behaviours for the 'funds_manager' skill."""
 import copy
-from typing import List, Tuple, cast
+from typing import Dict, List, Tuple, cast
 
 from aea.skills.behaviours import SimpleBehaviour
 from w3multicall.multicall import W3Multicall  # type: ignore[import]
@@ -100,29 +100,6 @@ class FundsManagerBehaviour(SimpleBehaviour):
 
         return funds_with_addresses
 
-    def _get_balances(
-        self,
-        chain_name: str,
-        balance_calls: List[tuple],
-    ) -> List:
-        # Execute multicall for all balances at once
-        return self._perform_w3_multicall(
-            self.params.rpc_urls[chain_name], [call for _, _, call in balance_calls]
-        )
-
-    def _get_decimals_map(self, chain_name: str, decimals_calls: dict) -> dict:
-        """Get a map of token address to decimals."""
-        # Execute multicall for all ERC20 decimals at once
-        decimals_results = self._perform_w3_multicall(
-            self.params.rpc_urls[chain_name], list(decimals_calls.values())
-        )
-
-        decimals_map = {
-            token_address: value
-            for token_address, value in zip(decimals_calls.keys(), decimals_results)
-        }
-        return decimals_map
-
     def _get_native_balance_call_tuple(
         self, account_address: str, token_address: str
     ) -> tuple:
@@ -147,7 +124,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
             W3Multicall.Call(token_address, ERC20_BALANCE_ABI, [account_address]),
         )
 
-    def _construct_balance_calls(
+    def _construct_calls(
         self,
         account_address: str,
         account_requirements: AccountRequirements,
@@ -185,11 +162,10 @@ class FundsManagerBehaviour(SimpleBehaviour):
         funds = self._switch_out_account_names_for_addresses(self.fund_requirements)
 
         for chain_name, chain_requirements in funds.items():
-            # Collect all calls for this chain
+            # Collect calls per chain
             balance_calls = []
             decimals_calls = {}
-            token_mapping = {}  # (account_name, token_address) -> TokenRequirement
-
+            token_mapping: Dict[Tuple, TokenRequirement] = {}
             for (
                 account_address,
                 account_requirements,
@@ -198,24 +174,35 @@ class FundsManagerBehaviour(SimpleBehaviour):
                     balance_calls_account,
                     decimals_calls_account,
                     token_mapping_account,
-                ) = self._construct_balance_calls(account_address, account_requirements)
+                ) = self._construct_calls(account_address, account_requirements)
                 balance_calls.extend(balance_calls_account)
                 decimals_calls.update(decimals_calls_account)
                 token_mapping.update(token_mapping_account)
 
-            balances = self._get_balances(chain_name, balance_calls)
+            # Perform ONE multicall per chain
+            all_calls = [call for _, _, call in balance_calls] + list(
+                decimals_calls.values()
+            )
+            results = self._perform_w3_multicall(
+                self.params.rpc_urls[chain_name], all_calls
+            )
 
-            decimals_map = self._get_decimals_map(chain_name, decimals_calls)
+            # Split results
+            balance_calls_end_index = len(balance_calls)
+            balance_results = results[:balance_calls_end_index]
+            decimal_results = results[balance_calls_end_index:]
+
+            decimals_map = {
+                token_addr: res
+                for token_addr, res in zip(decimals_calls.keys(), decimal_results)
+            }
 
             # Fill in balances, deficits, and decimals
             for (account_address, token_address, _), balance in zip(
-                balance_calls, balances
+                balance_calls, balance_results
             ):
                 balance = int(balance or 0)
-                token_requirement: TokenRequirement = token_mapping[
-                    (account_address, token_address)
-                ]
-
+                token_requirement = token_mapping[(account_address, token_address)]
                 deficit = (
                     max(token_requirement.topup - balance, 0)
                     if balance < token_requirement.threshold

@@ -92,15 +92,12 @@ OPTIMUS_INITIAL_FUND_REQUIREMENTS = {
 
 
 OPTIMUS_MULTICALL_RETURN_VALUES = [
-    # optimism
-    [0, 2500000000000000, 0, 0],  # agent-eth, agent-usdc, safe-eth, safe-usdc
-    [6],  # usdc decimals
-    # base
-    [0, 0, 2500000000000000, 0],  # agent-eth, agent-usdc, safe-eth, safe-usdc
-    [6],  # usdc decimals
-    # mode
-    [0, 0, 0, 0],  # # agent-eth, agent-usdc, safe-eth, safe-usdc
-    [6],  # usdc decimals
+    # optimism - agent-eth, agent-usdc, safe-eth, safe-usdc, usdc decimals
+    [0, 2500000000000000, 0, 0, 6],
+    # base - agent-eth, agent-usdc, safe-eth, safe-usdc, usdc decimals
+    [0, 0, 2500000000000000, 0, 6],
+    # mode - agent-eth, agent-usdc, safe-eth, safe-usdc, usdc decimals
+    [0, 0, 0, 0, 6],
 ]
 
 
@@ -204,8 +201,8 @@ TRADER_INITIAL_FUND_REQUIREMENTS = {
 }
 
 TRADER_MULTICALL_RETURN_VALUES = [
-    [50000000000000000 - 1, 2500000000000000000],  # agent, safe balance on gnosis
-    [18],  # xdai decimals
+    # gnosis - agent-eth, safe-eth, eth decimals
+    [50000000000000000 - 1, 2500000000000000000, 18]
 ]
 
 
@@ -223,6 +220,41 @@ TRADER_FUNDS_RESPONSE = {
                 "balance": "2500000000000000000",
                 "deficit": "0",
                 "decimals": 18,
+            }
+        },
+    }
+}
+
+
+INVALID_TRADER_FUND_REQUIREMENTS = {
+    "gnosis": {
+        "agent": {
+            "0x0000000000000000000000000000000000000000": {
+                "topup": 100000000000000000,
+                "threshold": 50000000000000000,
+            }
+        },
+        "wrong_safe": {
+            "0x0000000000000000000000000000000000000000": {
+                "topup": 5000000000000000000,
+                "threshold": 2500000000000000000,
+            }
+        },
+    }
+}
+
+INVALID_TRADER_TOKEN_REQUIREMENTS = {
+    "gnosis": {
+        "agent": {
+            "0x0000000000000000000000000000000000000000": {
+                "topup": 100000000000000000,
+                "threshold": 50000000000000000,
+            }
+        },
+        "safe": {
+            "0x0000000000000000000000000000000000000000": {
+                "wrong_topup": 5000000000000000000,
+                "threshold": 2500000000000000000,
             }
         },
     }
