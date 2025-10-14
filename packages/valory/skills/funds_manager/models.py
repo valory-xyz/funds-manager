@@ -108,6 +108,8 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
     @classmethod
     def from_dict(cls, fund_dict: Dict[str, Any]) -> "FundRequirements":
         """Create 'FundRequirements' from a dictionary."""
+        if not fund_dict:
+            raise ValueError("Fund requirements cannot be empty.")
         fund_requirements = {}
         validation_errors = []
         for chain, accounts in fund_dict.items():
