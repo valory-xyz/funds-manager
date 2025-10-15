@@ -30,8 +30,7 @@ models:
     args:
       fund_requirements: {}
       rpc_urls: {}
-      setup:
-        safe_contract_address: ''
+      safe_contract_addresses: {}
     class_name: Params
 dependencies:
   web3: {}
