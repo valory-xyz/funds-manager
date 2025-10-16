@@ -74,16 +74,13 @@ class FundsManagerBehaviour(SimpleBehaviour):
         """Return the fund requirements."""
         return cast(FundRequirements, self.params.fund_requirements)
 
-    @property
-    def safe_address(self) -> str:
-        """Return the safe address."""
-        return self.params.safe_address
-
-    def _get_account_address(self, account_name: str) -> str:
+    def _account_name_to_actual_address(
+        self, account_name: str, chain_name: str
+    ) -> str:
         """Get the address for the given account name."""
         if account_name == AGENT_ACCOUNT_NAME:
             return self.context.agent_address
-        return self.safe_address
+        return self.params.safe_contract_addresses[chain_name]
 
     def _switch_out_account_names_for_addresses(
         self, funds: FundRequirements
@@ -91,9 +88,11 @@ class FundsManagerBehaviour(SimpleBehaviour):
         """Switch out account names for addresses in the given FundRequirements object."""
         funds_with_addresses = copy.deepcopy(funds)
 
-        for _, chain_requirements in funds_with_addresses.items():
+        for chain_name, chain_requirements in funds_with_addresses.items():
             for account_name in list(chain_requirements.accounts.keys()):
-                account_address = self._get_account_address(account_name)
+                account_address = self._account_name_to_actual_address(
+                    account_name, chain_name
+                )
                 chain_requirements.accounts[
                     account_address
                 ] = chain_requirements.accounts.pop(account_name)

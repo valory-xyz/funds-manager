@@ -173,22 +173,14 @@ class Params(Model):
         self.rpc_urls: Dict[str, str] = self._ensure_get(
             "rpc_urls", kwargs, Dict[str, str]
         )
-        self.safe_address: str = self._get_safe_address(kwargs)
+        self.safe_contract_addresses: Dict[str, str] = self._ensure_get(
+            "safe_contract_addresses", kwargs, Dict[str, str]
+        )
         self.fund_requirements: FundRequirements = FundRequirements.from_dict(
             self._ensure_get("fund_requirements", kwargs, Dict[str, Any])
         )
 
         super().__init__(*args, **kwargs)
-
-    @classmethod
-    def _get_safe_address(cls, kwargs: Dict) -> str:
-        """Get the safe address from the kwargs."""
-        setup = cls._ensure_get("setup", kwargs, dict)
-        enforce(
-            "safe_contract_address" in setup,
-            "safe_contract_address must be provided in setup param.",
-        )
-        return setup["safe_contract_address"]
 
     @classmethod
     def _ensure_get(cls, key: str, kwargs: Dict, type_: Any) -> Any:
