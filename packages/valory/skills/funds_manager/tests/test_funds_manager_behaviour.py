@@ -24,6 +24,7 @@ from typing import Any, Dict, cast
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from aea.configurations.base import PackageConfiguration
 from aea.test_tools.test_skill import BaseSkillTestCase
 
@@ -59,8 +60,12 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 "params": {
                     "args": {
                         "fund_requirements": data_for_tests.TRADER_INITIAL_FUND_REQUIREMENTS,
-                        "setup": {
-                            "safe_contract_address": data_for_tests.MOCK_SAFE_ADDRESS,
+                        "safe_contract_addresses": {
+                            "gnosis": data_for_tests.MOCK_SAFE_ADDRESS,
+                            "base": data_for_tests.MOCK_SAFE_ADDRESS,
+                            "optimism": data_for_tests.MOCK_SAFE_ADDRESS,
+                            "mode": data_for_tests.MOCK_SAFE_ADDRESS,
+                            "celo": data_for_tests.MOCK_SAFE_ADDRESS_CELO,
                         },
                         "rpc_urls": data_for_tests.MOCK_RPC_URLS,
                     },
@@ -76,9 +81,23 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         self.behaviour.setup()
         super().setup(**kwargs)
 
-    def test_safe_address(self, mock_safe_address: str) -> None:
-        """Test the `safe_address` property."""
-        assert self.behaviour.safe_address == mock_safe_address
+    @pytest.mark.parametrize(
+        "account_name, chain_name, expected_address",
+        [
+            ("agent", "gnosis", data_for_tests.MOCK_AGENT_ADDRESS),
+            ("safe", "gnosis", data_for_tests.MOCK_SAFE_ADDRESS),
+            ("safe", "celo", data_for_tests.MOCK_SAFE_ADDRESS_CELO),
+        ],
+    )
+    def test_account_name_to_actual_address(
+        self, account_name: str, chain_name: str, expected_address: str
+    ) -> None:
+        """Test the `_account_name_to_actual_address` method."""
+        behaviour = self.behaviour
+        assert (
+            behaviour._account_name_to_actual_address(account_name, chain_name)
+            == expected_address
+        )
 
     def test_get_funds_status_exists_in_shared_state(self) -> None:
         """Test the `get_funds_status` method is correctly set in the shared state."""

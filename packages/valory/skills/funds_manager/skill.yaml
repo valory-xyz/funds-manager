@@ -7,12 +7,12 @@ license: Apache-2.0
 aea_version: '>=1.0.0, <2.0.0'
 fingerprint:
   __init__.py: bafybeiglhekx55noix6x6rmng7hsoqqpgythltdcocrmsxbvpdfi6kq6ye
-  behaviours.py: bafybeif7oib3xr7yrzezt54umwxmhk6lgawn7tv5gjt57mykugf7mu27m4
-  models.py: bafybeieu2ibqntsese5mroijj5zselmmsaqzdndrumfrd2z7k6uzswz57q
+  behaviours.py: bafybeifjobknd2ypnz4stp32tkjsdkveqk3vh6ab7nejgkh3ybeftnzjha
+  models.py: bafybeigmxosnyqqeqjgpw5qmv4p6k2nu4elwjz2sftc53l5av7x5cwtuae
   tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
   tests/conftest.py: bafybeib2waccqjjqh77pu47l53yxyvswgnkzi7djdfpojg64el33fepaqq
-  tests/data_for_tests.py: bafybeiaruv35r5s6oifbtklto64txcedu3jhh4xmerep5adtijg26jwwpa
-  tests/test_funds_manager_behaviour.py: bafybeihgcnjxsjhfk2e6egmvv3lepk345nfljlhkvcaun5yqky3zee6zdy
+  tests/data_for_tests.py: bafybeigjn53d56z7jsrqisxc6wm4pfi6kdgx6bh4heudqjraxg567ano5u
+  tests/test_funds_manager_behaviour.py: bafybeic4k33dtcgd4cnw5xqa2p64xsonm7yotcz6pptjidgdo6klhnadnq
   tests/test_funds_manager_models.py: bafybeidtheihpiilvv24sj3sgweikdhrquc3xpipu3oxhky45aftbwgrwu
 fingerprint_ignore_patterns: []
 connections: []
