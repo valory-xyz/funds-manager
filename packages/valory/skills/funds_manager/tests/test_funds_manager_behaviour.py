@@ -89,7 +89,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             ("safe", "celo", data_for_tests.MOCK_SAFE_ADDRESS_CELO),
         ],
     )
-    def test__account_name_to_actual_address(
+    def test_account_name_to_actual_address(
         self, account_name: str, chain_name: str, expected_address: str
     ) -> None:
         """Test the `_account_name_to_actual_address` method."""
