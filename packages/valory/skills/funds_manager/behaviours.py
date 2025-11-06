@@ -93,9 +93,9 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 account_address = self._account_name_to_actual_address(
                     account_name, chain_name
                 )
-                chain_requirements.accounts[
-                    account_address
-                ] = chain_requirements.accounts.pop(account_name)
+                chain_requirements.accounts[account_address] = (
+                    chain_requirements.accounts.pop(account_name)
+                )
 
         return funds_with_addresses
 
