@@ -4,10 +4,10 @@ version: 0.1.0
 type: skill
 description: A skill to track agent funds.
 license: Apache-2.0
-aea_version: '>=1.0.0, <2.0.0'
+aea_version: '>=2.0.0, <3.0.0'
 fingerprint:
   __init__.py: bafybeiglhekx55noix6x6rmng7hsoqqpgythltdcocrmsxbvpdfi6kq6ye
-  behaviours.py: bafybeifjobknd2ypnz4stp32tkjsdkveqk3vh6ab7nejgkh3ybeftnzjha
+  behaviours.py: bafybeidhxcyhueiouuznqt7hfxoxup7eo5gasir3jzogfedout76oie5ci
   models.py: bafybeigmxosnyqqeqjgpw5qmv4p6k2nu4elwjz2sftc53l5av7x5cwtuae
   tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
   tests/conftest.py: bafybeib2waccqjjqh77pu47l53yxyvswgnkzi7djdfpojg64el33fepaqq
@@ -19,7 +19,7 @@ connections: []
 contracts: []
 protocols: []
 skills:
-- valory/abstract_round_abci:0.1.0:bafybeifsuf7sh5vlugnqinbqe2f7vnssuqyxcrzqgotohhwqewyjeibneu
+- valory/abstract_round_abci:0.1.0:bafybeib4xpcpuiryyfnkuyhypdvqi5ebbl7ugavv6ig6yp4nzk3fxosntm
 behaviours:
   funds_manager:
     args: {}
