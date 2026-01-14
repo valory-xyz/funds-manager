@@ -11,13 +11,13 @@
         "protocol/valory/abci/0.1.0": "bafybeicjjeintlqgg53zrreflmoafeiynt3gvdnovy5ocea7doddos3e5a",
         "protocol/valory/tendermint/0.1.0": "bafybeie4jqosqiicefnlnxsvrymqj6tycv7x5qeitsdew6abhdcxlu23r4",
         "protocol/valory/ipfs/0.1.0": "bafybeidqfs3njcishcwv4ymf4srxibw44u7qrnryxiwrg5ulk2h7myvt6q",
-        "contract/valory/service_registry/0.1.0": "bafybeigcr4y6ylathz5owdyq6nhvrdpv5unyeb3ol3h3xbncq24useqlpa",
+        "contract/valory/service_registry/0.1.0": "bafybeia2ojsye42jngihatprxcz4cpp2mysyidnmy5zehpshwt4zjf6xha",
         "connection/valory/http_client/0.23.0": "bafybeib34a2ukancj5524tz64smczju2q2njscgufmtml6dcjb3bjyaocy",
         "connection/valory/ledger/0.19.0": "bafybeifdsep5suryfufmto4j5fyvjhmlgypyg6zvvwqsm4edlwfbfsav5y",
         "connection/valory/p2p_libp2p_client/0.1.0": "bafybeihezztwiiismlbblbv67i4zibp7w6xzpqadt67mcdjaoauibjqii4",
-        "connection/valory/abci/0.1.0": "bafybeiberscgdns2sc3oy4jvgneuexfk5c5vdgau4cyinhjdyhhvyzlq44",
-        "connection/valory/ipfs/0.1.0": "bafybeiay7i5fsahngv4hrxiq4vzeuanvmkj2ge2lujqx7ntvuboldjgpf4",
-        "skill/valory/abstract_abci/0.1.0": "bafybeid2qayyeiomseygex6rdnqzetpyiuc2caslf7rnkojfbsovxhrsly",
-        "skill/valory/abstract_round_abci/0.1.0": "bafybeic7qnx3fektetwxxdqt34f5wpwtvkpqpqh233hp3w4hdxjxlx5y7m"
+        "connection/valory/ipfs/0.1.0": "bafybeidhf3rcmxfk62rtzb5syij6546yygoldwyxrn3cnwql32nzabiiae",
+        "connection/valory/abci/0.1.0": "bafybeidohvgi6hobingv3kftdp42h67mc2fonpwvfzsvwwab6me7mdlhjm",
+        "skill/valory/abstract_abci/0.1.0": "bafybeibvaza2eipkaclhqxojoyqn3prejqb64imamqxzi2qg5fnlkwicpi",
+        "skill/valory/abstract_round_abci/0.1.0": "bafybeib4apybhtx3gx6o4x5b2nwqjkbdqi7dx7rxyrb5r3zztcdjiezvh4"
     }
 }
