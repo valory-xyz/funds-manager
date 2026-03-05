@@ -75,10 +75,10 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         with mock.patch.object(PackageConfiguration, "check_overrides_valid"):
             super().setup_class(**kwargs)
 
-    def setup(self, **kwargs: Any) -> None:
+    def setup_method(self, **kwargs: Any) -> None:
         """Setup."""
+        super().setup_method(**kwargs)
         self.behaviour.setup()
-        super().setup(**kwargs)
 
     @pytest.mark.parametrize(
         "account_name, chain_name, expected_address",
