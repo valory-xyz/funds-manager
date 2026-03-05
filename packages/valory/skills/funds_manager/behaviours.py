@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
 #
-#   Copyright 2025 Valory AG
+#   Copyright 2025-2026 Valory AG
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 """This module contains the behaviours for the 'funds_manager' skill."""
+
 import copy
 from typing import Dict, List, Tuple, cast
 
@@ -31,7 +32,6 @@ from packages.valory.skills.funds_manager.models import (
     Params,
     TokenRequirement,
 )
-
 
 ERC20_DECIMALS_ABI = "decimals()(uint8)"
 NATIVE_BALANCE_ABI = "getEthBalance(address)(uint256)"
