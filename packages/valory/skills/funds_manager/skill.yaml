@@ -12,7 +12,7 @@ fingerprint:
   tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
   tests/conftest.py: bafybeib2waccqjjqh77pu47l53yxyvswgnkzi7djdfpojg64el33fepaqq
   tests/data_for_tests.py: bafybeigjn53d56z7jsrqisxc6wm4pfi6kdgx6bh4heudqjraxg567ano5u
-  tests/test_funds_manager_behaviour.py: bafybeiegjq5h6bcqzistf6chs7jpplrabxe62lw5u2jd45xs4e3jamcuyq
+  tests/test_funds_manager_behaviour.py: bafybeih6euq6oyt4wxdara2qu2cs2w74ffp2sk3jxbmifwhrhmevrkfmsa
   tests/test_funds_manager_models.py: bafybeids5ofllnkjdvtspk2wujgqifzyhhtaewpm4ameacefnerdvwi4da
 fingerprint_ignore_patterns: []
 connections: []
