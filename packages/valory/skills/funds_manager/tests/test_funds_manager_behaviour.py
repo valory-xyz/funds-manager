@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
 #
-#   Copyright 2025 Valory AG
+#   Copyright 2025-2026 Valory AG
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -34,7 +34,6 @@ from packages.valory.skills.funds_manager.behaviours import (
 )
 from packages.valory.skills.funds_manager.models import FundRequirements
 from packages.valory.skills.funds_manager.tests import data_for_tests
-
 
 CURRENT_FILE_PATH = Path(__file__).resolve()
 PACKAGE_DIR = CURRENT_FILE_PATH.parents[1]

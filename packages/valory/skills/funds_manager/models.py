@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
 #
-#   Copyright 2025 Valory AG
+#   Copyright 2025-2026 Valory AG
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ from aea.skills.base import Model
 from pydantic import BaseModel, RootModel, ValidationError  # type: ignore[import]
 
 from packages.valory.skills.abstract_round_abci.utils import check_type
-
 
 NATIVE_ADDRESSES = [
     "0x0000000000000000000000000000000000000000",
