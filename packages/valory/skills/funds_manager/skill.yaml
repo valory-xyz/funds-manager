@@ -6,20 +6,20 @@ description: A skill to track agent funds.
 license: Apache-2.0
 aea_version: '>=2.0.0, <3.0.0'
 fingerprint:
-  __init__.py: bafybeiglhekx55noix6x6rmng7hsoqqpgythltdcocrmsxbvpdfi6kq6ye
-  behaviours.py: bafybeidhxcyhueiouuznqt7hfxoxup7eo5gasir3jzogfedout76oie5ci
-  models.py: bafybeigmxosnyqqeqjgpw5qmv4p6k2nu4elwjz2sftc53l5av7x5cwtuae
+  __init__.py: bafybeicr4ibak7vr4f7zxg7u3jtwrmg6ttdjxwhtgs3medufq4hct7mbrm
+  behaviours.py: bafybeiby3ogo6jdxmqfxweji5vrc46yvyq6qth2xblrfytj4ksdbc7rdmy
+  models.py: bafybeibs6ncoxtp6hc7valghpreuyx633vtqnog2cezo7bkqefe3muwub4
   tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
   tests/conftest.py: bafybeib2waccqjjqh77pu47l53yxyvswgnkzi7djdfpojg64el33fepaqq
   tests/data_for_tests.py: bafybeigjn53d56z7jsrqisxc6wm4pfi6kdgx6bh4heudqjraxg567ano5u
-  tests/test_funds_manager_behaviour.py: bafybeic4k33dtcgd4cnw5xqa2p64xsonm7yotcz6pptjidgdo6klhnadnq
-  tests/test_funds_manager_models.py: bafybeidtheihpiilvv24sj3sgweikdhrquc3xpipu3oxhky45aftbwgrwu
+  tests/test_funds_manager_behaviour.py: bafybeiegjq5h6bcqzistf6chs7jpplrabxe62lw5u2jd45xs4e3jamcuyq
+  tests/test_funds_manager_models.py: bafybeids5ofllnkjdvtspk2wujgqifzyhhtaewpm4ameacefnerdvwi4da
 fingerprint_ignore_patterns: []
 connections: []
 contracts: []
 protocols: []
 skills:
-- valory/abstract_round_abci:0.1.0:bafybeihhadgaitdltynzaq4w7jhgwbdnizsobbaa2riqtqwbml3li2tieq
+- valory/abstract_round_abci:0.1.0:bafybeicehi2yqab3lldm7qzoqev3tmqrdk275sbtcabneyorhmzft76z7m
 behaviours:
   funds_manager:
     args: {}
