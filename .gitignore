@@ -27,3 +27,5 @@ logs/
 data/
 benchmarks/
 .vscode/
+
+.claude
