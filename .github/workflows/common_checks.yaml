@@ -69,7 +69,7 @@ jobs:
       - name: Check dependencies
         run: tox -e check-dependencies
       - name: Check doc links
-        run: tomte check-doc-links --http-skips "http://127.0.0.1:8716/funds-status" --url-skips "http://127.0.0.1:8716/funds-status" --url-skips "https://rpc.gnosischain.com" --url-skips "https://mainnet.optimism.io"
+        run: tomte check-doc-links
       - name: Check doc IPFS hashes
         run: tox -e check-doc-hashes
 
