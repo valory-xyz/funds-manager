@@ -119,7 +119,7 @@ jobs:
           gitleaks detect --report-format json --report-path leak_report -v
 
   test:
-    continue-on-error: True
+    continue-on-error: False
     needs:
       - lock_check
       - copyright_and_dependencies_check
@@ -216,3 +216,29 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
+
+  all_checks_passed:
+    name: All checks passed
+    runs-on: ubuntu-24.04
+    if: always()
+    needs:
+      - lock_check
+      - copyright_and_dependencies_check
+      - linter_checks
+      - scan
+      - test
+    steps:
+      - name: Verify all required jobs succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          bad = [name for name, info in data.items() if info.get("result") != "success"]
+          if bad:
+              print(f"Required jobs did not succeed: {bad}")
+              sys.exit(1)
+          print("All required jobs succeeded.")
+          '
