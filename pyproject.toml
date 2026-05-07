@@ -11,12 +11,12 @@ readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
     # OA / open-aea / plugins — pinned exactly (framework contract).
-    "open-autonomy[all]==0.21.19",
-    "open-aea-ledger-ethereum==2.2.1",
-    "open-aea-ledger-cosmos==2.2.1",
-    "open-aea-test-autonomy==0.21.19",
-    "open-aea-cli-ipfs==2.2.1",
-    "open-aea-helpers==0.21.19",
+    "open-autonomy[all]==0.21.20",
+    "open-aea-ledger-ethereum==2.2.3",
+    "open-aea-ledger-cosmos==2.2.3",
+    "open-aea-test-autonomy==0.21.20",
+    "open-aea-cli-ipfs==2.2.3",
+    "open-aea-helpers==0.21.20",
     # Framework/lib deps — ranges (funds-manager ships a skill library, not an app).
     "requests>=2.32.5",
     "grpcio==1.78.0",
@@ -43,12 +43,24 @@ Repository = "https://github.com/valory-xyz/funds-manager"
 
 [dependency-groups]
 dev = [
-    "tomte[cli, tests]>=0.6.5",
+    "setuptools>=78.1.1,<82",
+    "tomte[cli, tests] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0",
 ]
 
 [tool.uv]
 default-groups = "all"
 prerelease = "allow"
+
+[tool.tomte]
+# No non-PyPI upstream beyond OA/open-aea, which tomte auto-derives
+# from `[project].dependencies`.
+upstream_pins = []
+# `funds_manager` is a utility skill (rebalancing helpers) with no
+# `handlers.py` — it doesn't speak ABCI / HTTP / signing, so the
+# canonical handler-presence check has nothing to lint here. Extend
+# the auto-derived third-party ignores with this dev-package name.
+check_handlers_ignores = ["funds_manager"]
+tomte_dep_pin = " @ git+https://github.com/valory-xyz/tomte.git@v0.7.0"
 
 [tool.uv.build-backend]
 module-name = ["packages"]

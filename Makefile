@@ -71,16 +71,17 @@ security:
 
 .PHONY: common-checks-1
 common-checks-1:
-	tomte check-copyright --author valory --exclude-part abci --exclude-part http_client --exclude-part http_server --exclude-part ipfs --exclude-part ledger --exclude-part p2p_libp2p_client --exclude-part erc20 --exclude-part gnosis_safe --exclude-part gnosis_safe_proxy_factory --exclude-part mech --exclude-part mech_marketplace --exclude-part multisend --exclude-part service_registry --exclude-part protocols --exclude-part abstract_abci --exclude-part abstract_round_abci --exclude-part mech_interact_abci --exclude-part registration_abci --exclude-part reset_pause_abci --exclude-part termination_abci --exclude-part transaction_settlement_abci --exclude-part websocket_client --exclude-part contract_subscription -	tomte format-copyright --author valory --exclude-part abci --exclude-part http_client --exclude-part http_server --exclude-part ipfs --exclude-part ledger --exclude-part p2p_libp2p_client --exclude-part erc20 --exclude-part gnosis_safe --exclude-part gnosis_safe_proxy_factory --exclude-part mech --exclude-part mech_marketplace --exclude-part multisend --exclude-part service_registry --exclude-part protocols --exclude-part abstract_abci --exclude-part abstract_round_abci --exclude-part mech_interact_abci --exclude-part registration_abci --exclude-part reset_pause_abci --exclude-part termination_abci --exclude-part transaction_settlement_abci --exclude-part websocket_client --exclude-part contract_subscription --exclude-part agent_registry
+	tomte check-copyright --author valory
+	tomte format-copyright --author valory
 	tomte check-doc-links
-	tox -qq -p -e check-hash -e check-packages -e check-doc-hashes -e analyse-service
+	tomte tox -qq -p -e check-hash -e check-packages -e check-doc-hashes
 
 .PHONY: common-checks-2
 common-checks-2:
-	tox -qq -e check-abci-docstrings
-	tox -qq -e check-abciapp-specs
-	tox -qq -e check-dependencies
-	tox -qq -e check-handlers
+	tomte tox -qq -e check-abci-docstrings
+	tomte tox -qq -e check-abciapp-specs
+	tomte tox -qq -e check-dependencies
+	tomte tox -qq -e check-handlers
 
 .PHONY: all-checks
 all-checks: format code-checks security generators common-checks-1 common-checks-2
@@ -93,20 +94,19 @@ protolint_install:
 .PHONY: all-linters
 all-linters:
 	gitleaks detect --report-format json --report-path leak_report
-	tox -qq -e spell-check
-	tox -qq -e liccheck
-	tox -qq -e check-doc-hashes
-	tox -qq -e bandit
-	tox -qq -e safety
-	tox -qq -e check-packages
-	tox -qq -e check-abciapp-specs
-	tox -qq -e check-hash
-	tox -qq -e black-check
-	tox -qq -e isort-check
-	tox -qq -e flake8
-	tox -qq -e darglint
-	tox -qq -e pylint
-	tox -qq -e mypy
+	tomte tox -qq -e liccheck
+	tomte tox -qq -e check-doc-hashes
+	tomte tox -qq -e bandit
+	tomte tox -qq -e safety
+	tomte tox -qq -e check-packages
+	tomte tox -qq -e check-abciapp-specs
+	tomte tox -qq -e check-hash
+	tomte tox -qq -e black-check
+	tomte tox -qq -e isort-check
+	tomte tox -qq -e flake8
+	tomte tox -qq -e darglint
+	tomte tox -qq -e pylint
+	tomte tox -qq -e mypy
 
 
 .PHONY: push-packages
@@ -116,6 +116,6 @@ push-packages:
 
 .PHONY: generators
 generators:
-	tox -e abci-docstrings
-	tomte format-copyright --author author_name
+	tomte tox -e abci-docstrings
+	tomte format-copyright --author valory
 	autonomy packages lock
