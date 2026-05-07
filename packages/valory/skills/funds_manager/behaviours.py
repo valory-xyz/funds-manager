@@ -22,7 +22,7 @@ import copy
 from typing import Dict, List, Tuple, cast
 
 from aea.skills.behaviours import SimpleBehaviour
-from w3multicall.multicall import W3Multicall  # type: ignore[import]
+from w3multicall.multicall import W3Multicall  # type: ignore[import-not-found]
 from web3 import Web3
 
 from packages.valory.skills.funds_manager.models import (
@@ -72,7 +72,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
     @property
     def fund_requirements(self) -> FundRequirements:
         """Return the fund requirements."""
-        return cast(FundRequirements, self.params.fund_requirements)
+        return self.params.fund_requirements
 
     def _account_name_to_actual_address(
         self, account_name: str, chain_name: str

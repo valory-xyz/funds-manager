@@ -23,7 +23,11 @@ from typing import Any, Dict, ItemsView, Iterator, Optional
 
 from aea.exceptions import enforce
 from aea.skills.base import Model
-from pydantic import BaseModel, RootModel, ValidationError  # type: ignore[import]
+from pydantic import (  # type: ignore[import-not-found]
+    BaseModel,
+    RootModel,
+    ValidationError,
+)
 
 from packages.valory.skills.abstract_round_abci.utils import check_type
 
