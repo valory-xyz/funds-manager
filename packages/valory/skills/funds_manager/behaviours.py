@@ -25,6 +25,9 @@ import requests
 from aea.skills.behaviours import SimpleBehaviour
 from eth_abi import decode as abi_decode  # type: ignore[import-not-found]
 from eth_abi import encode as abi_encode  # type: ignore[import-not-found]
+from eth_abi.exceptions import (  # type: ignore[import-not-found]
+    DecodingError,
+)
 from eth_utils import (  # type: ignore[import-not-found]
     function_signature_to_4byte_selector,
 )
@@ -35,6 +38,7 @@ from web3.providers.rpc.utils import ExceptionRetryConfiguration
 from packages.valory.skills.funds_manager.models import (
     AGENT_ACCOUNT_NAME,
     AccountRequirements,
+    ChainRequirements,
     FundRequirements,
     Params,
     TokenRequirement,
@@ -61,16 +65,20 @@ _RETRY_ON_EXCEPTIONS: Tuple[type, ...] = (
 )
 
 
-def _decode_call_result(call: W3Multicall.Call, returndata: bytes) -> Optional[Any]:
-    """Decode a sub-call's return data, returning None on failure.
+def _decode_call_result(
+    call: W3Multicall.Call, returndata: bytes
+) -> Tuple[Optional[int], Optional[Exception]]:
+    """Decode a single-output sub-call as an int.
 
-    Single-output signatures unwrap to a scalar; multi-output return a tuple.
+    All call signatures dispatched by this skill return one uint, so the
+    decoded value is unwrapped to a scalar `int`. Returns ``(None, exc)``
+    when decoding raises, so the caller can surface the failure cause.
     """
     try:
         decoded = abi_decode(call.output_types, returndata)
-    except Exception:  # pylint: disable=broad-except
-        return None
-    return decoded[0] if len(decoded) == 1 else decoded
+    except (DecodingError, ValueError, OverflowError) as exc:
+        return None, exc
+    return int(decoded[0]), None
 
 
 class FundsManagerBehaviour(SimpleBehaviour):
@@ -109,11 +117,11 @@ class FundsManagerBehaviour(SimpleBehaviour):
 
     def _perform_try_aggregate(
         self, rpc_url: str, calls: List[W3Multicall.Call]
-    ) -> List[Optional[Any]]:
+    ) -> List[Optional[int]]:
         """Execute a Multicall3 tryAggregate.
 
         Returns a list the same length as `calls`. Each entry is the decoded
-        return value, or None if the sub-call reverted or failed to decode.
+        uint, or None if the sub-call reverted or failed to decode.
         """
         if not calls:
             return []
@@ -132,19 +140,25 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 f"Multicall returned {len(results)} entries for {len(calls)} calls"
             )
 
-        decoded: List[Optional[Any]] = []
+        decoded: List[Optional[int]] = []
         for call, (success, returndata) in zip(calls, results):
             if not success:
+                self.context.logger.debug(
+                    "funds_manager: sub-call reverted " "(address=%s, output_types=%s)",
+                    call.address,
+                    call.output_types,
+                )
                 decoded.append(None)
                 continue
-            value = _decode_call_result(call, returndata)
+            value, exc = _decode_call_result(call, returndata)
             if value is None:
                 self.context.logger.debug(
                     "funds_manager: decode failed for call to %s "
-                    "(output_types=%s, returndata=%s)",
+                    "(output_types=%s, returndata=%s, error=%r)",
                     call.address,
                     call.output_types,
                     returndata.hex(),
+                    exc,
                 )
             decoded.append(value)
         return decoded
@@ -243,7 +257,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
     def _populate_chain_status(
         self,
         chain_name: str,
-        chain_requirements: Any,
+        chain_requirements: ChainRequirements,
     ) -> None:
         """Populate balance, deficit, and decimals for every token on a chain.
 

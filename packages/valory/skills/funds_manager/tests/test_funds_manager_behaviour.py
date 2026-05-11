@@ -241,29 +241,79 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
 
         funds = behaviour.get_funds_status()
         response = funds.get_response_body()
+        usdc_address = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
 
-        agent_usdc = response["optimism"][data_for_tests.MOCK_AGENT_ADDRESS][
-            "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
-        ]
-        # ERC20 decimals failed: token marked unknown, no balance/deficit asserted.
-        assert agent_usdc["balance"] is None
-        assert agent_usdc["deficit"] is None
-        assert agent_usdc["decimals"] is None
+        # Every ERC20 slot (both accounts) must be marked unknown — the shared
+        # decimals failure invalidates the token across all accounts.
+        for account_address in (
+            data_for_tests.MOCK_AGENT_ADDRESS,
+            data_for_tests.MOCK_SAFE_ADDRESS,
+        ):
+            usdc = response["optimism"][account_address][usdc_address]
+            assert usdc["balance"] is None
+            assert usdc["deficit"] is None
+            assert usdc["decimals"] is None
 
         # Native ETH on the same chain still resolves: it does not need decimals.
-        agent_eth = response["optimism"][data_for_tests.MOCK_AGENT_ADDRESS][
-            "0x0000000000000000000000000000000000000000"
-        ]
-        assert agent_eth["balance"] == "0"
-        assert agent_eth["decimals"] == 18
+        for account_address in (
+            data_for_tests.MOCK_AGENT_ADDRESS,
+            data_for_tests.MOCK_SAFE_ADDRESS,
+        ):
+            eth = response["optimism"][account_address][
+                "0x0000000000000000000000000000000000000000"
+            ]
+            assert eth["balance"] == "0"
+            assert eth["decimals"] == 18
 
-    def test_get_web3_constructs_without_error(self) -> None:
-        """`_get_web3` must build a Web3 instance, including ExceptionRetryConfiguration."""
+    def test_get_web3_threads_timeout_and_retry_params(self) -> None:
+        """`_get_web3` must build the provider with the configured timeout/retries."""
         behaviour = self.behaviour
+        behaviour.context.params.rpc_timeout_seconds = 7
+        behaviour.context.params.rpc_max_retries = 4
+
         w3 = behaviour._get_web3("https://example.invalid/rpc")
         assert isinstance(w3, Web3)
-        # Cached on the second call.
+
+        # The provider should carry the per-request timeout and retry count
+        # the skill params declared, not the web3 defaults.
+        provider = w3.provider
+        assert provider._request_kwargs == {"timeout": 7}
+        assert provider.exception_retry_configuration.retries == 4
+
+        # Second call returns the cached instance, not a fresh provider.
         assert behaviour._get_web3("https://example.invalid/rpc") is w3
+
+    def test_perform_try_aggregate_raises_on_length_mismatch(self) -> None:
+        """A multicall response with the wrong number of entries must raise."""
+        behaviour = self.behaviour
+        behaviour.context.params.fund_requirements = FundRequirements.from_dict(
+            data_for_tests.TRADER_INITIAL_FUND_REQUIREMENTS
+        )
+
+        # Build the two-call list trader/gnosis would dispatch.
+        funds = behaviour._switch_out_account_names_for_addresses(
+            behaviour.fund_requirements
+        )
+        balance_calls = []
+        for (
+            account_address,
+            account_requirements,
+        ) in funds["gnosis"].accounts.items():
+            balance_calls_account, _, _ = behaviour._construct_calls(
+                account_address, account_requirements
+            )
+            balance_calls.extend(balance_calls_account)
+        calls = [call for _, _, call in balance_calls]
+
+        # Encode a response with only ONE Result entry for TWO requested calls.
+        short_results = [(True, (1).to_bytes(32, "big"))]
+        encoded_short_response = abi_encode(["(bool,bytes)[]"], [short_results])
+
+        mock_w3 = MagicMock()
+        mock_w3.eth.call.return_value = encoded_short_response
+        with mock.patch.object(behaviour, "_get_web3", return_value=mock_w3):
+            with pytest.raises(RuntimeError, match="returned 1 entries for 2 calls"):
+                behaviour._perform_try_aggregate("https://example.invalid/rpc", calls)
 
     def test_perform_try_aggregate_real_encode_decode(self) -> None:
         """Exercise the hand-rolled tryAggregate encode/decode against a mocked eth_call."""
