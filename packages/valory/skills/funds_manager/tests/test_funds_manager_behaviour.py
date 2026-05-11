@@ -106,6 +106,26 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             self.behaviour.context.shared_state[GET_FUNDS_STATUS_METHOD_NAME]
         )
 
+    def test_shared_state_callable_returns_funds_status(
+        self, funds_dataset: Dict
+    ) -> None:
+        """The callable registered in shared_state must reach the same code path."""
+        behaviour = self.behaviour
+        fund_requirements = funds_dataset["fund_requirements"]
+        funds_response = funds_dataset["funds_response"]
+        mock_multicall_response = funds_dataset["multicall"]
+        behaviour.context.params.fund_requirements = FundRequirements.from_dict(
+            fund_requirements
+        )
+        behaviour._perform_try_aggregate = mock.Mock(  # type: ignore[method-assign]
+            side_effect=mock_multicall_response
+        )
+
+        shared_callable = behaviour.context.shared_state[GET_FUNDS_STATUS_METHOD_NAME]
+        funds = shared_callable()
+
+        assert funds.get_response_body() == funds_response
+
     def test_get_funds_status(self, funds_dataset: Dict) -> None:
         """Test the `get_funds_status` method."""
         behaviour = self.behaviour
@@ -117,12 +137,116 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         )
 
         # patch the instance method
-        behaviour._perform_w3_multicall = mock.Mock(side_effect=mock_multicall_response)  # type: ignore
+        behaviour._perform_try_aggregate = mock.Mock(  # type: ignore[method-assign]
+            side_effect=mock_multicall_response
+        )
 
         funds = behaviour.get_funds_status()
 
-        assert behaviour._perform_w3_multicall.call_count == len(
+        assert behaviour._perform_try_aggregate.call_count == len(
             mock_multicall_response
         )
 
         assert funds.get_response_body() == funds_response
+
+    def test_chain_failure_leaves_other_chains_populated(self) -> None:
+        """One chain raising must not abort the loop or wipe other chains' data."""
+        behaviour = self.behaviour
+        behaviour.context.params.fund_requirements = FundRequirements.from_dict(
+            data_for_tests.OPTIMUS_INITIAL_FUND_REQUIREMENTS
+        )
+        # 3 chains in OPTIMUS_INITIAL_FUND_REQUIREMENTS; raise on the middle one
+        first_chain_results = data_for_tests.OPTIMUS_MULTICALL_RETURN_VALUES[0]
+        third_chain_results = data_for_tests.OPTIMUS_MULTICALL_RETURN_VALUES[2]
+        behaviour._perform_try_aggregate = mock.Mock(  # type: ignore[method-assign]
+            side_effect=[
+                first_chain_results,
+                RuntimeError("simulated RPC outage on chain 2"),
+                third_chain_results,
+            ]
+        )
+
+        funds = behaviour.get_funds_status()
+        response = funds.get_response_body()
+
+        # First chain: populated as normal.
+        first_chain = list(response.values())[0]
+        first_token = list(list(first_chain.values())[0].values())[0]
+        assert first_token["balance"] is not None
+        assert first_token["deficit"] is not None
+        assert first_token["decimals"] is not None
+
+        # Second chain: every token has balance=None / deficit=None.
+        second_chain = list(response.values())[1]
+        for account in second_chain.values():
+            for token in account.values():
+                assert token["balance"] is None
+                assert token["deficit"] is None
+
+        # Third chain: populated, untouched by the second chain's failure.
+        third_chain = list(response.values())[2]
+        third_token = list(list(third_chain.values())[0].values())[0]
+        assert third_token["balance"] is not None
+        assert third_token["deficit"] is not None
+
+    def test_sub_call_failure_does_not_become_zero_balance(self) -> None:
+        """A None sub-call result must not be treated as a legitimate zero balance."""
+        behaviour = self.behaviour
+        behaviour.context.params.fund_requirements = FundRequirements.from_dict(
+            data_for_tests.TRADER_INITIAL_FUND_REQUIREMENTS
+        )
+        # Trader chain has 2 native balance calls. Simulate the first reverting.
+        behaviour._perform_try_aggregate = mock.Mock(  # type: ignore[method-assign]
+            side_effect=[[None, 2500000000000000000]]
+        )
+
+        funds = behaviour.get_funds_status()
+        response = funds.get_response_body()
+        gnosis = response["gnosis"]
+
+        agent_eth = gnosis[data_for_tests.MOCK_AGENT_ADDRESS][
+            "0x0000000000000000000000000000000000000000"
+        ]
+        safe_eth = gnosis[data_for_tests.MOCK_SAFE_ADDRESS][
+            "0x0000000000000000000000000000000000000000"
+        ]
+
+        # The reverted sub-call must NOT be reported as "zero balance,
+        # deficit=topup"; otherwise the consumer would trigger an
+        # unnecessary top-up for a token whose balance is unknown.
+        assert agent_eth["balance"] is None
+        assert agent_eth["deficit"] is None
+
+        # The other sub-call in the same multicall succeeded and is reported.
+        assert safe_eth["balance"] == "2500000000000000000"
+        assert safe_eth["deficit"] == "0"
+
+    def test_decimals_failure_marks_token_unknown(self) -> None:
+        """A failed ERC20 decimals call must not silently default to 18."""
+        behaviour = self.behaviour
+        # Two-account ERC20-only-token-on-optimism setup gives us 4 balance
+        # calls + 1 decimals call. Make the decimals call fail.
+        behaviour.context.params.fund_requirements = FundRequirements.from_dict(
+            {"optimism": data_for_tests.OPTIMUS_INITIAL_FUND_REQUIREMENTS["optimism"]}
+        )
+        behaviour._perform_try_aggregate = mock.Mock(  # type: ignore[method-assign]
+            side_effect=[[0, 2500000000000000, 0, 0, None]]
+        )
+
+        funds = behaviour.get_funds_status()
+        response = funds.get_response_body()
+
+        agent_usdc = response["optimism"][data_for_tests.MOCK_AGENT_ADDRESS][
+            "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+        ]
+        # ERC20 decimals failed: token marked unknown, no balance/deficit asserted.
+        assert agent_usdc["balance"] is None
+        assert agent_usdc["deficit"] is None
+        assert agent_usdc["decimals"] is None
+
+        # Native ETH on the same chain still resolves: it does not need decimals.
+        agent_eth = response["optimism"][data_for_tests.MOCK_AGENT_ADDRESS][
+            "0x0000000000000000000000000000000000000000"
+        ]
+        assert agent_eth["balance"] == "0"
+        assert agent_eth["decimals"] == 18

@@ -7,13 +7,13 @@ license: Apache-2.0
 aea_version: '>=2.0.0, <3.0.0'
 fingerprint:
   __init__.py: bafybeicr4ibak7vr4f7zxg7u3jtwrmg6ttdjxwhtgs3medufq4hct7mbrm
-  behaviours.py: bafybeicexlhgk7eamyvpyny4eyadfbgfysfyhhquobeylu5tjyxetvjv3m
-  models.py: bafybeibsxvsc4atkboxkswzac4v34b44taiyygbphjyy2k6xrvszyo6oii
+  behaviours.py: bafybeiauozqb3k7mzi4oau4brdpfkkbp7cflwbglc4lwx6pgszd725x5wq
+  models.py: bafybeidhhijb2b7exaknbj3lzf7cdbg3frt7m3zzodg2z7fwgqsjoq6aba
   tests/__init__.py: bafybeibzbwbvz2qxazjbsm5bvmudfkez7gbred5p53t6ubr3dhe6duvwvi
   tests/conftest.py: bafybeib2waccqjjqh77pu47l53yxyvswgnkzi7djdfpojg64el33fepaqq
-  tests/data_for_tests.py: bafybeigjn53d56z7jsrqisxc6wm4pfi6kdgx6bh4heudqjraxg567ano5u
-  tests/test_funds_manager_behaviour.py: bafybeiaxspfyeaa6obo6qzqsghhuwzqtettcw2tfjmlesszavvfabrkgkm
-  tests/test_funds_manager_models.py: bafybeids5ofllnkjdvtspk2wujgqifzyhhtaewpm4ameacefnerdvwi4da
+  tests/data_for_tests.py: bafybeicouwcmvqgvb3fvepuabio7m2fgcdmjslunmtc7bavusqc243pkli
+  tests/test_funds_manager_behaviour.py: bafybeia3xygwly7w22izv33h57qnb7pb4abkwyx6365bhugxbatjjwqy2y
+  tests/test_funds_manager_models.py: bafybeide53tztb7lxfkjv5kgfdd3kxahimahdp3fjrqxjitskbk5ehuefm
 fingerprint_ignore_patterns: []
 connections: []
 contracts: []
@@ -31,10 +31,14 @@ models:
       fund_requirements: {}
       rpc_urls: {}
       safe_contract_addresses: {}
+      rpc_timeout_seconds: 10
+      rpc_max_retries: 2
     class_name: Params
 dependencies:
   web3: {}
   w3multicall: {}
   pydantic: {}
+  eth-abi: {}
+  eth-utils: {}
 is_abstract: false
 customs: []

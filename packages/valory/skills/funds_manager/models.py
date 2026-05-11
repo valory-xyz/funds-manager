@@ -43,6 +43,9 @@ ACCOUNTS = frozenset({AGENT_ACCOUNT_NAME, SAFE_ACCOUNT_NAME})
 BALANCE_KEY = "balance"
 DEFICIT_KEY = "deficit"
 
+DEFAULT_RPC_TIMEOUT_SECONDS = 10
+DEFAULT_RPC_MAX_RETRIES = 2
+
 
 class TokenRequirement(BaseModel):
     """Balance requirements for a specific token in an account."""
@@ -86,8 +89,8 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
     def build_account_requirements(
         cls,
         tokens: Dict[str, Dict[str, int]],
-    ) -> Optional[TokenRequirement]:
-        """Get the token requirement for a specific chain/account/token."""
+    ) -> AccountRequirements:
+        """Build an AccountRequirements from a {token_address: token_data} mapping."""
         token_objs = {}
         for token_address, token_data in tokens.items():
             is_native = token_address.lower() in NATIVE_ADDRESSES
@@ -132,7 +135,12 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
         return cls(**fund_requirements)
 
     def get_response_body(self) -> Dict[str, Any]:
-        """Convert to dict with flattened accounts/tokens and stringified balances/deficits."""
+        """Convert to dict with flattened accounts/tokens and stringified balances/deficits.
+
+        Balance and deficit are stringified to preserve precision for large
+        token amounts. None is preserved for tokens whose balance is unknown
+        (sub-call reverted, decode failed, or the whole-chain multicall failed).
+        """
         raw = self.model_dump(
             exclude={
                 "__all__": {
@@ -159,7 +167,7 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
                         new_obj[k] = flatten(v["tokens"])
                     else:
                         new_obj[k] = flatten(v)
-                elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(v, (int, float)):
+                elif k in {BALANCE_KEY, DEFICIT_KEY} and isinstance(v, int):
                     new_obj[k] = str(v)
                 else:
                     new_obj[k] = v
@@ -182,8 +190,33 @@ class Params(Model):
         self.fund_requirements: FundRequirements = FundRequirements.from_dict(
             self._ensure_get("fund_requirements", kwargs, Dict[str, Any])
         )
+        self.rpc_timeout_seconds: int = kwargs.get(
+            "rpc_timeout_seconds", DEFAULT_RPC_TIMEOUT_SECONDS
+        )
+        self.rpc_max_retries: int = kwargs.get(
+            "rpc_max_retries", DEFAULT_RPC_MAX_RETRIES
+        )
+
+        self._validate_chain_keys()
 
         super().__init__(*args, **kwargs)
+
+    def _validate_chain_keys(self) -> None:
+        """Reject configs where a chain in fund_requirements has no rpc_url or safe."""
+        fund_chains = set(self.fund_requirements.root.keys())
+        missing_rpc = fund_chains - set(self.rpc_urls.keys())
+        missing_safe = fund_chains - set(self.safe_contract_addresses.keys())
+        errors = []
+        if missing_rpc:
+            errors.append(
+                f"rpc_urls is missing chains declared in fund_requirements: {sorted(missing_rpc)}"
+            )
+        if missing_safe:
+            errors.append(
+                f"safe_contract_addresses is missing chains declared in fund_requirements: {sorted(missing_safe)}"
+            )
+        if errors:
+            raise ValueError(" ".join(errors))
 
     @classmethod
     def _ensure_get(cls, key: str, kwargs: Dict, type_: Any) -> Any:

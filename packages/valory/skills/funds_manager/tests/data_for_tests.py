@@ -202,8 +202,8 @@ TRADER_INITIAL_FUND_REQUIREMENTS = {
 }
 
 TRADER_MULTICALL_RETURN_VALUES = [
-    # gnosis - agent-eth, safe-eth, eth decimals
-    [50000000000000000 - 1, 2500000000000000000, 18]
+    # gnosis - agent-eth balance, safe-eth balance (no decimals call: both tokens are native)
+    [50000000000000000 - 1, 2500000000000000000]
 ]
 
 
