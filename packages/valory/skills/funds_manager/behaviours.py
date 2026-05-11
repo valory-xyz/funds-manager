@@ -21,6 +21,7 @@
 import copy
 from typing import Any, Dict, List, Optional, Tuple, cast
 
+import requests
 from aea.skills.behaviours import SimpleBehaviour
 from eth_abi import decode as abi_decode  # type: ignore[import-not-found]
 from eth_abi import encode as abi_encode  # type: ignore[import-not-found]
@@ -48,20 +49,22 @@ MULTICALL_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
 
 GET_FUNDS_STATUS_METHOD_NAME = "get_funds_status"
 
-# Multicall3 tryAggregate(bool requireSuccess, Call[] calls) returns Result[]
-# where Call = (address,bytes) and Result = (bool,bytes). Encoded directly
-# because w3multicall 0.3.1 only ships the aggregate ABI.
 _TRY_AGGREGATE_SIGNATURE = "tryAggregate(bool,(address,bytes)[])"
 _TRY_AGGREGATE_SELECTOR = function_signature_to_4byte_selector(_TRY_AGGREGATE_SIGNATURE)
 _TRY_AGGREGATE_INPUT_TYPES = ["bool", "(address,bytes)[]"]
 _TRY_AGGREGATE_OUTPUT_TYPES = ["(bool,bytes)[]"]
 
+_RETRY_ON_EXCEPTIONS: Tuple[type, ...] = (
+    ConnectionError,
+    requests.HTTPError,
+    requests.Timeout,
+)
+
 
 def _decode_call_result(call: W3Multicall.Call, returndata: bytes) -> Optional[Any]:
-    """Decode a single sub-call's return data against its declared output types.
+    """Decode a sub-call's return data, returning None on failure.
 
-    Returns None if decoding fails. Single-output signatures unwrap to scalar
-    so callers do not have to handle 1-tuples, matching the w3multicall convention.
+    Single-output signatures unwrap to a scalar; multi-output return a tuple.
     """
     try:
         decoded = abi_decode(call.output_types, returndata)
@@ -74,7 +77,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
     """FundsManagerBehaviour"""
 
     def __init__(self, **kwargs: Any) -> None:
-        """Initialize the behaviour and the per-RPC Web3 cache."""
+        """Initialize the behaviour."""
         super().__init__(**kwargs)
         self._web3_by_rpc_url: Dict[str, Web3] = {}
 
@@ -87,14 +90,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
         self.context.shared_state[GET_FUNDS_STATUS_METHOD_NAME] = self.get_funds_status
 
     def _get_web3(self, rpc_url: str) -> Web3:
-        """Return a cached Web3 instance for the given RPC URL.
-
-        One Web3 (and its underlying requests.Session) is reused across calls
-        so we are not opening a new TCP session per invocation. The HTTPProvider
-        is configured with an explicit per-request timeout and a capped retry
-        count so a slow or unreachable RPC does not block the caller's thread
-        for minutes.
-        """
+        """Return a cached Web3 instance for the given RPC URL."""
         cached = self._web3_by_rpc_url.get(rpc_url)
         if cached is not None:
             return cached
@@ -103,6 +99,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
             rpc_url,
             request_kwargs={"timeout": self.params.rpc_timeout_seconds},
             exception_retry_configuration=ExceptionRetryConfiguration(
+                errors=_RETRY_ON_EXCEPTIONS,
                 retries=self.params.rpc_max_retries,
             ),
         )
@@ -113,12 +110,10 @@ class FundsManagerBehaviour(SimpleBehaviour):
     def _perform_try_aggregate(
         self, rpc_url: str, calls: List[W3Multicall.Call]
     ) -> List[Optional[Any]]:
-        """Execute a Multicall3 tryAggregate and return per-call decoded values.
+        """Execute a Multicall3 tryAggregate.
 
         Returns a list the same length as `calls`. Each entry is the decoded
-        return value, or None if the sub-call reverted or its return data
-        failed to decode. A None entry is "I do not know", distinct from a
-        decoded zero.
+        return value, or None if the sub-call reverted or failed to decode.
         """
         if not calls:
             return []
@@ -137,10 +132,22 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 f"Multicall returned {len(results)} entries for {len(calls)} calls"
             )
 
-        return [
-            _decode_call_result(call, returndata) if success else None
-            for call, (success, returndata) in zip(calls, results)
-        ]
+        decoded: List[Optional[Any]] = []
+        for call, (success, returndata) in zip(calls, results):
+            if not success:
+                decoded.append(None)
+                continue
+            value = _decode_call_result(call, returndata)
+            if value is None:
+                self.context.logger.debug(
+                    "funds_manager: decode failed for call to %s "
+                    "(output_types=%s, returndata=%s)",
+                    call.address,
+                    call.output_types,
+                    returndata.hex(),
+                )
+            decoded.append(value)
+        return decoded
 
     @property
     def params(self) -> Params:
@@ -238,12 +245,10 @@ class FundsManagerBehaviour(SimpleBehaviour):
         chain_name: str,
         chain_requirements: Any,
     ) -> None:
-        """Populate balance, deficit, and decimals for every token on a single chain.
+        """Populate balance, deficit, and decimals for every token on a chain.
 
-        On per-sub-call failure the affected token's balance/deficit/decimals
-        stay None so the caller can tell "unknown" apart from "zero". On
-        whole-chain failure the exception propagates to get_funds_status,
-        which catches it so one bad chain does not abort the others.
+        Sub-call failure leaves the token's balance/deficit/decimals at None
+        (unknown, distinct from zero).
         """
         balance_calls: List = []
         decimals_calls: Dict[str, W3Multicall.Call] = {}
@@ -288,9 +293,6 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 decimals_value = decimals_map.get(token_address)
 
             if balance is None or decimals_value is None:
-                # A sub-call reverted or failed to decode. Leave fields as None
-                # so the caller does not mistake an unknown balance for zero
-                # and trigger an unnecessary top-up.
                 token_requirement.balance = None
                 token_requirement.deficit = None
                 token_requirement.decimals = decimals_value
@@ -309,9 +311,8 @@ class FundsManagerBehaviour(SimpleBehaviour):
     def get_funds_status(self) -> FundRequirements:
         """Get the current funds status, using chain-level multicalls.
 
-        Each chain is queried independently. A failure on one chain does not
-        affect the others; the failing chain's token entries keep their default
-        None balance/deficit/decimals so the caller can detect the gap.
+        Chains are queried independently. A failing chain's tokens keep
+        balance/deficit/decimals at None.
         """
         funds = self._switch_out_account_names_for_addresses(self.fund_requirements)
 

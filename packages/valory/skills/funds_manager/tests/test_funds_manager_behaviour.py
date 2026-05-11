@@ -27,10 +27,13 @@ from unittest.mock import MagicMock
 import pytest
 from aea.configurations.base import PackageConfiguration
 from aea.test_tools.test_skill import BaseSkillTestCase
+from eth_abi import encode as abi_encode  # type: ignore[import-not-found]
+from web3 import Web3
 
 from packages.valory.skills.funds_manager.behaviours import (
     FundsManagerBehaviour,
     GET_FUNDS_STATUS_METHOD_NAME,
+    MULTICALL_ADDR,
 )
 from packages.valory.skills.funds_manager.models import FundRequirements
 from packages.valory.skills.funds_manager.tests import data_for_tests
@@ -79,6 +82,9 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         """Setup."""
         super().setup_method(**kwargs)
         self.behaviour.setup()
+        for attr in ("_perform_try_aggregate", "_get_web3"):
+            self.behaviour.__dict__.pop(attr, None)
+        self.behaviour._web3_by_rpc_url = {}
 
     @pytest.mark.parametrize(
         "account_name, chain_name, expected_address",
@@ -250,3 +256,58 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         ]
         assert agent_eth["balance"] == "0"
         assert agent_eth["decimals"] == 18
+
+    def test_get_web3_constructs_without_error(self) -> None:
+        """`_get_web3` must build a Web3 instance, including ExceptionRetryConfiguration."""
+        behaviour = self.behaviour
+        w3 = behaviour._get_web3("https://example.invalid/rpc")
+        assert isinstance(w3, Web3)
+        # Cached on the second call.
+        assert behaviour._get_web3("https://example.invalid/rpc") is w3
+
+    def test_perform_try_aggregate_real_encode_decode(self) -> None:
+        """Exercise the hand-rolled tryAggregate encode/decode against a mocked eth_call."""
+        behaviour = self.behaviour
+        behaviour.context.params.fund_requirements = FundRequirements.from_dict(
+            data_for_tests.TRADER_INITIAL_FUND_REQUIREMENTS
+        )
+
+        # Build the same call list `get_funds_status` would produce for trader/gnosis:
+        # two native balance calls (agent, safe).
+        funds = behaviour._switch_out_account_names_for_addresses(
+            behaviour.fund_requirements
+        )
+        gnosis_requirements = funds["gnosis"]
+        balance_calls = []
+        for (
+            account_address,
+            account_requirements,
+        ) in gnosis_requirements.accounts.items():
+            balance_calls_account, _, _ = behaviour._construct_calls(
+                account_address, account_requirements
+            )
+            balance_calls.extend(balance_calls_account)
+        calls = [call for _, _, call in balance_calls]
+
+        # Pre-encode a tryAggregate response: first sub-call reverts (success=False),
+        # second sub-call returns uint256(2500...) as 32 bytes.
+        second_balance = 2500000000000000000
+        results_tuple = [
+            (False, b""),
+            (True, second_balance.to_bytes(32, "big")),
+        ]
+        encoded_response = abi_encode(["(bool,bytes)[]"], [results_tuple])
+
+        mock_w3 = MagicMock()
+        mock_w3.eth.call.return_value = encoded_response
+        with mock.patch.object(behaviour, "_get_web3", return_value=mock_w3):
+            decoded = behaviour._perform_try_aggregate(
+                "https://example.invalid/rpc", calls
+            )
+
+        assert decoded == [None, second_balance]
+        # The eth_call must have been issued against the multicall contract with
+        # the tryAggregate selector as the leading 4 bytes of `data`.
+        sent_tx = mock_w3.eth.call.call_args.args[0]
+        assert sent_tx["to"] == MULTICALL_ADDR
+        assert sent_tx["data"][:4].hex() == "bce38bd7"
