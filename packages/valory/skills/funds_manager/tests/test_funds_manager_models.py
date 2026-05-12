@@ -21,11 +21,12 @@
 
 import re
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
+from unittest import mock
 
 import pytest
 
-from packages.valory.skills.funds_manager.models import FundRequirements
+from packages.valory.skills.funds_manager.models import FundRequirements, Params
 from packages.valory.skills.funds_manager.tests import data_for_tests
 
 CURRENT_FILE_PATH = Path(__file__).resolve()
@@ -66,3 +67,49 @@ class TestFundRequirementsModel:
             for account_name, tokens in accounts.items():
                 for addr in tokens.keys():
                     assert addr in model.get_response_body()[chain][account_name]
+
+
+def _build_params_kwargs(**overrides: Any) -> Dict[str, Any]:
+    """Build a minimal Params kwargs dict, with optional per-key overrides."""
+    kwargs: Dict[str, Any] = {
+        "name": "params",
+        "skill_context": mock.MagicMock(skill_id="valory/funds_manager:0.1.0"),
+        "fund_requirements": data_for_tests.TRADER_INITIAL_FUND_REQUIREMENTS,
+        "rpc_urls": {"gnosis": "https://mock-rpc.com/gnosis"},
+        "safe_contract_addresses": {"gnosis": data_for_tests.MOCK_SAFE_ADDRESS},
+    }
+    kwargs.update(overrides)
+    return kwargs
+
+
+class TestParamsChainKeyValidation:
+    """Cross-validate that every fund chain has a matching rpc + safe entry."""
+
+    def test_accepts_aligned_chains(self) -> None:
+        """When every fund chain has rpc_urls and safe entries, init succeeds."""
+        Params(**_build_params_kwargs())
+
+    def test_rejects_missing_rpc_url(self) -> None:
+        """A chain declared in fund_requirements but absent from rpc_urls is rejected."""
+        with pytest.raises(ValueError, match="rpc_urls is missing"):
+            Params(**_build_params_kwargs(rpc_urls={}))
+
+    def test_rejects_missing_safe_address(self) -> None:
+        """A chain declared in fund_requirements but absent from safe is rejected."""
+        with pytest.raises(ValueError, match="safe_contract_addresses is missing"):
+            Params(**_build_params_kwargs(safe_contract_addresses={}))
+
+    def test_extra_rpc_url_chains_are_allowed(self) -> None:
+        """rpc_urls / safe may list extra chains beyond what fund_requirements needs."""
+        Params(
+            **_build_params_kwargs(
+                rpc_urls={
+                    "gnosis": "https://mock-rpc.com/gnosis",
+                    "base": "https://mock-rpc.com/base",
+                },
+                safe_contract_addresses={
+                    "gnosis": data_for_tests.MOCK_SAFE_ADDRESS,
+                    "base": data_for_tests.MOCK_SAFE_ADDRESS,
+                },
+            )
+        )

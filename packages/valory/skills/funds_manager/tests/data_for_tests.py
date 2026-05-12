@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
 #
-#   Copyright 2025 Valory AG
+#   Copyright 2025-2026 Valory AG
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -202,8 +202,8 @@ TRADER_INITIAL_FUND_REQUIREMENTS = {
 }
 
 TRADER_MULTICALL_RETURN_VALUES = [
-    # gnosis - agent-eth, safe-eth, eth decimals
-    [50000000000000000 - 1, 2500000000000000000, 18]
+    # gnosis - agent-eth balance, safe-eth balance (no decimals call: both tokens are native)
+    [50000000000000000 - 1, 2500000000000000000]
 ]
 
 
