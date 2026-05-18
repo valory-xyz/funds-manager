@@ -32,7 +32,7 @@ dependencies = [
     "multidict",
     "py-ecc<10,>=8",
     # funds_manager skill runtime deps (actual imports in packages/).
-    "web3<8,>=7.0.0",
+    "web3<8,>=7.15.0",
     "w3multicall>=0.3.1",
     "pydantic>=2.11.9,<3",
     "eth-abi<6,>=5",
