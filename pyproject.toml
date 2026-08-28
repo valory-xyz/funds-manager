@@ -46,7 +46,7 @@ Repository = "https://github.com/valory-xyz/funds-manager"
 [dependency-groups]
 dev = [
     "setuptools>=78.1.1,<82",
-    "tomte[cli, tests] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0",
+    "tomte[cli, tests] @ git+https://github.com/valory-xyz/tomte.git@v0.7.2",
 ]
 
 [tool.uv]
@@ -62,7 +62,7 @@ upstream_pins = []
 # canonical handler-presence check has nothing to lint here. Extend
 # the auto-derived third-party ignores with this dev-package name.
 check_handlers_ignores = ["funds_manager"]
-tomte_dep_pin = " @ git+https://github.com/valory-xyz/tomte.git@v0.7.0"
+tomte_dep_pin = " @ git+https://github.com/valory-xyz/tomte.git@v0.7.2"
 
 [tool.uv.build-backend]
 module-name = ["packages"]
