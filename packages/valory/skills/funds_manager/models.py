@@ -19,6 +19,7 @@
 
 """This module contains the models for the 'funds_manager' skill."""
 
+from enum import Enum
 from typing import Any, Dict, ItemsView, Iterator, Optional
 
 from aea.exceptions import enforce
@@ -53,9 +54,30 @@ class TokenRequirement(BaseModel):
     topup: int
     threshold: int
     is_native: bool
+    # Minimum Agent Signer native balance needed to execute a top-up Safe tx.
+    # Only meaningful on the Agent Signer native entry.
+    min_tx_balance: Optional[int] = None
     balance: Optional[int] = None
     deficit: Optional[int] = None
     decimals: Optional[int] = None
+
+
+class TopUpAction(str, Enum):
+    """What the agent should do about its Agent Signer native balance on a chain."""
+
+    NONE = "none"  # nothing due, or a balance could not be read
+    MOVE = "move"  # move `move` wei Agent Safe -> Agent Signer
+    SIGNER_ALERT = "signer_alert"  # Agent Signer < min_tx_balance
+    SAFE_ALERT = "safe_alert"  # Agent Safe native at 0, Agent Signer short
+
+
+class AgentTopUp(BaseModel):
+    """The Agent Safe -> Agent Signer top-up decision for one chain."""
+
+    action: TopUpAction
+    move: int  # wei; 0 unless action == MOVE
+    signer_deficit: Optional[int]  # Agent Signer native deficit; None = as read
+    safe_deficit: Optional[int]  # Agent Safe native deficit; None = as read
 
 
 class AccountRequirements(BaseModel):
@@ -146,7 +168,14 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
                 "__all__": {
                     "accounts": {
                         "__all__": {
-                            "tokens": {"__all__": {"topup", "threshold", "is_native"}}
+                            "tokens": {
+                                "__all__": {
+                                    "topup",
+                                    "threshold",
+                                    "is_native",
+                                    "min_tx_balance",
+                                }
+                            }
                         }
                     }
                 }
