@@ -532,6 +532,16 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         assert topups["gnosis"].signer_deficit is None
         assert topups["gnosis"].safe_deficit is None
 
+    def test_get_agent_topup_no_move_without_native_entry(self) -> None:
+        """A chain whose Agent Safe has no native requirement is reported as today."""
+        funds = self._topup_funds(500, 5000)
+        safe_tokens = funds["gnosis"].accounts[data_for_tests.MOCK_SAFE_ADDRESS].tokens
+        del safe_tokens[NATIVE]
+        topups = self.behaviour.get_agent_topup(funds)
+        assert topups["gnosis"] == AgentTopUp(
+            action=TopUpAction.NONE, move=0, signer_deficit=None, safe_deficit=None
+        )
+
     def test_get_agent_topup_agent_need_extra_is_added(self) -> None:
         """An extra Agent Signer need is moved even above the threshold."""
         topups = self.behaviour.get_agent_topup(
@@ -557,7 +567,9 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             agent_need_extra={"gnosis": 300},
             agent_need_override={"gnosis": 700},
         )
-        assert topups["gnosis"].move == 700
+        assert topups["gnosis"] == AgentTopUp(
+            action=TopUpAction.MOVE, move=700, signer_deficit=0, safe_deficit=None
+        )
 
     def test_get_agent_topup_override_of_zero_moves_nothing(self) -> None:
         """An override of 0 means nothing is due."""
