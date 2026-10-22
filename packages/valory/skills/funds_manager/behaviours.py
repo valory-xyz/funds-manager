@@ -372,6 +372,9 @@ class FundsManagerBehaviour(SimpleBehaviour):
 
         Pure: it only reads the balances already in `funds`, so the FSM step and
         the `/funds-status` handler get the same answer for the same status.
+        `signer_deficit=0` assumes the move succeeds: a `/funds-status` caller
+        should report it only after a move has actually succeeded, so a top-up
+        that keeps failing still shows as a deficit to fund.
 
         :param funds: the status returned by `get_funds_status()`.
         :param agent_need_extra: chain -> wei added to the Agent Signer need.
@@ -399,8 +402,6 @@ class FundsManagerBehaviour(SimpleBehaviour):
             if (
                 signer is None
                 or safe is None
-                or signer.min_tx_balance is None
-                or signer.balance is None
                 or signer.deficit is None
                 or safe.balance is None
             ):
@@ -414,33 +415,20 @@ class FundsManagerBehaviour(SimpleBehaviour):
 
             if need <= 0:
                 topups[chain_name] = no_action
-            elif signer.balance < signer.min_tx_balance:
-                topups[chain_name] = AgentTopUp(
-                    action=TopUpAction.SIGNER_ALERT,
-                    move=0,
-                    signer_deficit=need,
-                    safe_deficit=None,
-                )
-            elif safe_native >= need:
-                topups[chain_name] = AgentTopUp(
-                    action=TopUpAction.MOVE,
-                    move=need,
-                    signer_deficit=0,
-                    safe_deficit=None,
-                )
-            elif safe_native > 0:
-                topups[chain_name] = AgentTopUp(
-                    action=TopUpAction.MOVE,
-                    move=safe_native,
-                    signer_deficit=0,
-                    safe_deficit=need - safe_native + safe.topup,
-                )
-            else:
-                topups[chain_name] = AgentTopUp(
-                    action=TopUpAction.SAFE_ALERT,
-                    move=0,
-                    signer_deficit=0,
-                    safe_deficit=need + safe.topup,
-                )
+                continue
+
+            move = min(need, safe_native)
+            # Negative when the Agent Safe is short; the shortfall joins its deficit.
+            safe_remaining = safe_native - need
+            topups[chain_name] = AgentTopUp(
+                action=TopUpAction.MOVE if move > 0 else TopUpAction.SAFE_ALERT,
+                move=move,
+                signer_deficit=0,
+                safe_deficit=(
+                    max(safe.topup - safe_remaining, 0)
+                    if safe_remaining < safe.threshold
+                    else 0
+                ),
+            )
 
         return topups

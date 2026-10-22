@@ -28,6 +28,7 @@ from pydantic import (  # type: ignore[import-not-found]
     BaseModel,
     RootModel,
     ValidationError,
+    model_validator,
 )
 
 from packages.valory.skills.abstract_round_abci.utils import check_type
@@ -54,9 +55,6 @@ class TokenRequirement(BaseModel):
     topup: int
     threshold: int
     is_native: bool
-    # Minimum Agent Signer native balance needed to execute a top-up Safe tx.
-    # Only meaningful on the Agent Signer native entry.
-    min_tx_balance: Optional[int] = None
     balance: Optional[int] = None
     deficit: Optional[int] = None
     decimals: Optional[int] = None
@@ -67,7 +65,6 @@ class TopUpAction(str, Enum):
 
     NONE = "none"  # nothing due, or a balance could not be read
     MOVE = "move"  # move `move` wei Agent Safe -> Agent Signer
-    SIGNER_ALERT = "signer_alert"  # Agent Signer < min_tx_balance
     SAFE_ALERT = "safe_alert"  # Agent Safe native at 0, Agent Signer short
 
 
@@ -75,9 +72,18 @@ class AgentTopUp(BaseModel):
     """The Agent Safe -> Agent Signer top-up decision for one chain."""
 
     action: TopUpAction
-    move: int  # wei; 0 unless action == MOVE
+    move: int  # wei; > 0 exactly when action == MOVE
     signer_deficit: Optional[int]  # Agent Signer native deficit; None = as read
     safe_deficit: Optional[int]  # Agent Safe native deficit; None = as read
+
+    @model_validator(mode="after")
+    def _check_move_matches_action(self) -> "AgentTopUp":
+        """Reject a `move` that disagrees with `action`."""
+        if (self.action == TopUpAction.MOVE) != (self.move > 0):
+            raise ValueError(
+                f"move={self.move} is inconsistent with action={self.action.value}"
+            )
+        return self
 
 
 class AccountRequirements(BaseModel):
@@ -168,14 +174,7 @@ class FundRequirements(RootModel[Dict[str, ChainRequirements]]):
                 "__all__": {
                     "accounts": {
                         "__all__": {
-                            "tokens": {
-                                "__all__": {
-                                    "topup",
-                                    "threshold",
-                                    "is_native",
-                                    "min_tx_balance",
-                                }
-                            }
+                            "tokens": {"__all__": {"topup", "threshold", "is_native"}}
                         }
                     }
                 }

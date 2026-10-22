@@ -28,6 +28,7 @@ import pytest
 from aea.configurations.base import PackageConfiguration
 from aea.test_tools.test_skill import BaseSkillTestCase
 from eth_abi import encode as abi_encode  # type: ignore[import-not-found]
+from pydantic import ValidationError  # type: ignore[import-not-found]
 from web3 import Web3
 
 from packages.valory.skills.funds_manager.behaviours import (
@@ -49,7 +50,6 @@ PACKAGE_DIR = CURRENT_FILE_PATH.parents[1]
 NATIVE = "0x0000000000000000000000000000000000000000"
 SIGNER_TOPUP = 2000
 SIGNER_THRESHOLD = 1000
-MIN_TX_BALANCE = 100
 SAFE_TOPUP = 10000
 
 
@@ -377,20 +377,18 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         self,
         signer_balance: Optional[int],
         safe_balance: Optional[int],
-        min_tx_balance: Optional[int] = MIN_TX_BALANCE,
     ) -> FundRequirements:
         """Build a gnosis funds status as `get_funds_status()` would return it."""
-        signer_requirement: Dict[str, int] = {
-            "topup": SIGNER_TOPUP,
-            "threshold": SIGNER_THRESHOLD,
-        }
-        if min_tx_balance is not None:
-            signer_requirement["min_tx_balance"] = min_tx_balance
         funds = self.behaviour._switch_out_account_names_for_addresses(
             FundRequirements.from_dict(
                 {
                     "gnosis": {
-                        "agent": {NATIVE: signer_requirement},
+                        "agent": {
+                            NATIVE: {
+                                "topup": SIGNER_TOPUP,
+                                "threshold": SIGNER_THRESHOLD,
+                            }
+                        },
                         "safe": {
                             NATIVE: {"topup": SAFE_TOPUP, "threshold": 5000},
                         },
@@ -455,18 +453,29 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                     safe_deficit=None,
                 ),
             ),
-            # Agent Signer cannot pay for the Safe tx
+            # Agent Safe covers the need and stays at or above its threshold
             (
-                99,
-                5000,
+                500,
+                6500,
                 AgentTopUp(
-                    action=TopUpAction.SIGNER_ALERT,
-                    move=0,
-                    signer_deficit=1901,
-                    safe_deficit=None,
+                    action=TopUpAction.MOVE,
+                    move=1500,
+                    signer_deficit=0,
+                    safe_deficit=0,
                 ),
             ),
-            # Agent Safe covers the need
+            # Agent Safe covers the need but drops below its threshold
+            (
+                500,
+                6000,
+                AgentTopUp(
+                    action=TopUpAction.MOVE,
+                    move=1500,
+                    signer_deficit=0,
+                    safe_deficit=SAFE_TOPUP - 4500,
+                ),
+            ),
+            # Agent Safe covers the need exactly
             (
                 500,
                 1500,
@@ -474,17 +483,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                     action=TopUpAction.MOVE,
                     move=1500,
                     signer_deficit=0,
-                    safe_deficit=None,
-                ),
-            ),
-            (
-                100,
-                5000,
-                AgentTopUp(
-                    action=TopUpAction.MOVE,
-                    move=1900,
-                    signer_deficit=0,
-                    safe_deficit=None,
+                    safe_deficit=SAFE_TOPUP,
                 ),
             ),
             # Agent Safe holds less: move all, ask for the rest plus the Safe topup
@@ -523,15 +522,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         )
         assert topups == {"gnosis": expected}
 
-    def test_get_agent_topup_no_move_without_min_tx_balance(self) -> None:
-        """A chain without `min_tx_balance` is reported as today."""
-        topups = self.behaviour.get_agent_topup(
-            self._topup_funds(500, 5000, min_tx_balance=None)
-        )
-        assert topups["gnosis"].action == TopUpAction.NONE
-        assert topups["gnosis"].signer_deficit is None
-        assert topups["gnosis"].safe_deficit is None
-
     def test_get_agent_topup_no_move_without_native_entry(self) -> None:
         """A chain whose Agent Safe has no native requirement is reported as today."""
         funds = self._topup_funds(500, 5000)
@@ -548,7 +538,10 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             self._topup_funds(1500, 5000), agent_need_extra={"gnosis": 300}
         )
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.MOVE, move=300, signer_deficit=0, safe_deficit=None
+            action=TopUpAction.MOVE,
+            move=300,
+            signer_deficit=0,
+            safe_deficit=SAFE_TOPUP - 4700,
         )
 
     def test_get_agent_topup_safe_native_extra_is_counted(self) -> None:
@@ -557,7 +550,10 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             self._topup_funds(500, 0), safe_native_extra={"gnosis": 2000}
         )
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.MOVE, move=1500, signer_deficit=0, safe_deficit=None
+            action=TopUpAction.MOVE,
+            move=1500,
+            signer_deficit=0,
+            safe_deficit=SAFE_TOPUP - 500,
         )
 
     def test_get_agent_topup_override_replaces_rule(self) -> None:
@@ -568,7 +564,10 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             agent_need_override={"gnosis": 700},
         )
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.MOVE, move=700, signer_deficit=0, safe_deficit=None
+            action=TopUpAction.MOVE,
+            move=700,
+            signer_deficit=0,
+            safe_deficit=SAFE_TOPUP - 4300,
         )
 
     def test_get_agent_topup_override_of_zero_moves_nothing(self) -> None:
@@ -578,8 +577,13 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         )
         assert topups["gnosis"].action == TopUpAction.NONE
 
-    def test_response_body_excludes_min_tx_balance(self) -> None:
-        """`get_funds_status()`'s response shape is unchanged."""
-        body = self._topup_funds(500, 0).get_response_body()
-        signer_entry = body["gnosis"][data_for_tests.MOCK_AGENT_ADDRESS][NATIVE]
-        assert "min_tx_balance" not in signer_entry
+    @pytest.mark.parametrize(
+        "action, move",
+        [(TopUpAction.MOVE, 0), (TopUpAction.NONE, 1), (TopUpAction.SAFE_ALERT, 1)],
+    )
+    def test_agent_topup_rejects_move_inconsistent_with_action(
+        self, action: TopUpAction, move: int
+    ) -> None:
+        """`move` is positive exactly when `action` is MOVE."""
+        with pytest.raises(ValidationError, match="inconsistent"):
+            AgentTopUp(action=action, move=move, signer_deficit=0, safe_deficit=0)
