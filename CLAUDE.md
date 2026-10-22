@@ -50,6 +50,11 @@ package edits change IPFS hashes, and `check-hash` fails until
 `autonomy packages lock` (the last step of `generators`) has rewritten
 `packages/packages.json`.
 
+**Copyright checks need full git history.** In a shallow clone, `make generators`
+bumps the copyright year on files you never touched, and `check-copyright` fails
+on them ("Missing later year"). Run `git fetch --unshallow` first; if
+`generators` already ran, revert the unrelated header changes.
+
 `make abci-docstrings` and `make copyright` are named in `CONTRIBUTING.md` but
 are not Makefile targets. Use `make generators` and
 `tomte check-copyright --author valory`.
