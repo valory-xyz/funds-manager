@@ -20,7 +20,7 @@
 """This module contains the tests for valory/fund_managers' behaviour."""
 
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, Dict, Optional, cast
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -32,14 +32,20 @@ from web3 import Web3
 
 from packages.valory.skills.funds_manager.behaviours import (
     FundsManagerBehaviour,
+    GET_AGENT_TOPUP_METHOD_NAME,
     GET_FUNDS_STATUS_METHOD_NAME,
     MULTICALL_ADDR,
 )
-from packages.valory.skills.funds_manager.models import FundRequirements
+from packages.valory.skills.funds_manager.models import AgentTopUp, FundRequirements
 from packages.valory.skills.funds_manager.tests import data_for_tests
 
 CURRENT_FILE_PATH = Path(__file__).resolve()
 PACKAGE_DIR = CURRENT_FILE_PATH.parents[1]
+
+NATIVE = "0x0000000000000000000000000000000000000000"
+SIGNER_TOPUP = 2000
+SIGNER_THRESHOLD = 1000
+SAFE_TOPUP = 10000
 
 
 class TestFundsManagerBehaviour(BaseSkillTestCase):
@@ -361,3 +367,196 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         sent_tx = mock_w3.eth.call.call_args.args[0]
         assert sent_tx["to"] == MULTICALL_ADDR
         assert sent_tx["data"][:4].hex() == "bce38bd7"
+
+    def _topup_funds(
+        self,
+        signer_balance: Optional[int],
+        safe_balance: Optional[int],
+    ) -> FundRequirements:
+        """Build a gnosis funds status as `get_funds_status()` would return it."""
+        funds = self.behaviour._switch_out_account_names_for_addresses(
+            FundRequirements.from_dict(
+                {
+                    "gnosis": {
+                        "agent": {
+                            NATIVE: {
+                                "topup": SIGNER_TOPUP,
+                                "threshold": SIGNER_THRESHOLD,
+                            }
+                        },
+                        "safe": {
+                            NATIVE: {"topup": SAFE_TOPUP, "threshold": 5000},
+                        },
+                    }
+                }
+            )
+        )
+        accounts = funds["gnosis"].accounts
+        signer = accounts[data_for_tests.MOCK_AGENT_ADDRESS].tokens[NATIVE]
+        safe = accounts[data_for_tests.MOCK_SAFE_ADDRESS].tokens[NATIVE]
+        signer.balance = signer_balance
+        if signer_balance is not None:
+            signer.deficit = (
+                SIGNER_TOPUP - signer_balance
+                if signer_balance < SIGNER_THRESHOLD
+                else 0
+            )
+        safe.balance = safe_balance
+        return funds
+
+    def test_get_agent_topup_registered_in_shared_state(self) -> None:
+        """The rule is published in shared_state beside `get_funds_status`."""
+        shared_callable = self.behaviour.context.shared_state[
+            GET_AGENT_TOPUP_METHOD_NAME
+        ]
+        assert shared_callable(self._topup_funds(500, 5000))["gnosis"].move == 1500
+
+    @pytest.mark.parametrize(
+        "signer_balance, safe_balance, expected",
+        [
+            # a balance could not be read
+            (
+                None,
+                5000,
+                AgentTopUp(
+                    move=0,
+                    signer_deficit=None,
+                    safe_deficit=None,
+                ),
+            ),
+            (
+                500,
+                None,
+                AgentTopUp(
+                    move=0,
+                    signer_deficit=None,
+                    safe_deficit=None,
+                ),
+            ),
+            # Agent Signer at or above its threshold: nothing needed
+            (
+                1000,
+                0,
+                AgentTopUp(
+                    move=0,
+                    signer_deficit=None,
+                    safe_deficit=None,
+                ),
+            ),
+            # Agent Safe covers the need and stays at or above its threshold
+            (
+                500,
+                6500,
+                AgentTopUp(
+                    move=1500,
+                    signer_deficit=0,
+                    safe_deficit=0,
+                ),
+            ),
+            # Agent Safe covers the need but drops below its threshold
+            (
+                500,
+                6000,
+                AgentTopUp(
+                    move=1500,
+                    signer_deficit=0,
+                    safe_deficit=SAFE_TOPUP - 4500,
+                ),
+            ),
+            # Agent Safe covers the need exactly
+            (
+                500,
+                1500,
+                AgentTopUp(
+                    move=1500,
+                    signer_deficit=0,
+                    safe_deficit=SAFE_TOPUP,
+                ),
+            ),
+            # Agent Safe holds less: move all, ask for the rest plus the Safe topup
+            (
+                500,
+                400,
+                AgentTopUp(
+                    move=400,
+                    signer_deficit=0,
+                    safe_deficit=1100 + SAFE_TOPUP,
+                ),
+            ),
+            # Agent Safe empty
+            (
+                500,
+                0,
+                AgentTopUp(
+                    move=0,
+                    signer_deficit=0,
+                    safe_deficit=1500 + SAFE_TOPUP,
+                ),
+            ),
+        ],
+    )
+    def test_get_agent_topup_rule(
+        self,
+        signer_balance: Optional[int],
+        safe_balance: Optional[int],
+        expected: AgentTopUp,
+    ) -> None:
+        """Each case of the top-up table."""
+        topups = self.behaviour.get_agent_topup(
+            self._topup_funds(signer_balance, safe_balance)
+        )
+        assert topups == {"gnosis": expected}
+
+    def test_get_agent_topup_no_move_without_native_entry(self) -> None:
+        """A chain whose Agent Safe has no native requirement is reported as today."""
+        funds = self._topup_funds(500, 5000)
+        safe_tokens = funds["gnosis"].accounts[data_for_tests.MOCK_SAFE_ADDRESS].tokens
+        del safe_tokens[NATIVE]
+        topups = self.behaviour.get_agent_topup(funds)
+        assert topups["gnosis"] == AgentTopUp(
+            move=0, signer_deficit=None, safe_deficit=None
+        )
+
+    def test_get_agent_topup_agent_need_extra_is_added(self) -> None:
+        """An extra Agent Signer need is moved even above the threshold."""
+        topups = self.behaviour.get_agent_topup(
+            self._topup_funds(1500, 5000), agent_need_extra={"gnosis": 300}
+        )
+        assert topups["gnosis"] == AgentTopUp(
+            move=300,
+            signer_deficit=0,
+            safe_deficit=SAFE_TOPUP - 4700,
+        )
+
+    def test_get_agent_topup_safe_native_extra_is_counted(self) -> None:
+        """Agent Safe native extra (e.g. wxDAI) counts towards what can move."""
+        topups = self.behaviour.get_agent_topup(
+            self._topup_funds(500, 0), safe_native_extra={"gnosis": 2000}
+        )
+        assert topups["gnosis"] == AgentTopUp(
+            move=1500,
+            signer_deficit=0,
+            safe_deficit=SAFE_TOPUP - 500,
+        )
+
+    def test_get_agent_topup_override_replaces_rule(self) -> None:
+        """An override replaces the topup rule and the extra."""
+        topups = self.behaviour.get_agent_topup(
+            self._topup_funds(500, 5000),
+            agent_need_extra={"gnosis": 300},
+            agent_need_override={"gnosis": 700},
+        )
+        assert topups["gnosis"] == AgentTopUp(
+            move=700,
+            signer_deficit=0,
+            safe_deficit=SAFE_TOPUP - 4300,
+        )
+
+    def test_get_agent_topup_override_of_zero_moves_nothing(self) -> None:
+        """An override of 0 means nothing is due."""
+        topups = self.behaviour.get_agent_topup(
+            self._topup_funds(500, 5000), agent_need_override={"gnosis": 0}
+        )
+        assert topups["gnosis"] == AgentTopUp(
+            move=0, signer_deficit=None, safe_deficit=None
+        )

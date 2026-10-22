@@ -38,9 +38,11 @@ from web3.providers.rpc.utils import ExceptionRetryConfiguration
 from packages.valory.skills.funds_manager.models import (
     AGENT_ACCOUNT_NAME,
     AccountRequirements,
+    AgentTopUp,
     ChainRequirements,
     FundRequirements,
     Params,
+    SAFE_ACCOUNT_NAME,
     TokenRequirement,
 )
 
@@ -52,6 +54,7 @@ NATIVE_DECIMALS = 18
 MULTICALL_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
 
 GET_FUNDS_STATUS_METHOD_NAME = "get_funds_status"
+GET_AGENT_TOPUP_METHOD_NAME = "get_agent_topup"
 
 _TRY_AGGREGATE_SIGNATURE = "tryAggregate(bool,(address,bytes)[])"
 _TRY_AGGREGATE_SELECTOR = function_signature_to_4byte_selector(_TRY_AGGREGATE_SIGNATURE)
@@ -96,6 +99,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
         """Set up the behaviour."""
         super().setup()
         self.context.shared_state[GET_FUNDS_STATUS_METHOD_NAME] = self.get_funds_status
+        self.context.shared_state[GET_AGENT_TOPUP_METHOD_NAME] = self.get_agent_topup
 
     def _get_web3(self, rpc_url: str) -> Web3:
         """Return a cached Web3 instance for the given RPC URL."""
@@ -343,3 +347,84 @@ class FundsManagerBehaviour(SimpleBehaviour):
                 )
 
         return funds
+
+    @staticmethod
+    def _get_native_requirement(
+        chain_requirements: ChainRequirements, account_address: str
+    ) -> Optional[TokenRequirement]:
+        """Return the native token requirement of an account, if it has one."""
+        account = chain_requirements.accounts.get(account_address)
+        if account is None:
+            return None
+        return next(
+            (token for token in account.tokens.values() if token.is_native), None
+        )
+
+    def get_agent_topup(
+        self,
+        funds: FundRequirements,
+        agent_need_extra: Optional[Dict[str, int]] = None,
+        safe_native_extra: Optional[Dict[str, int]] = None,
+        agent_need_override: Optional[Dict[str, int]] = None,
+    ) -> Dict[str, AgentTopUp]:
+        """Decide, per chain, how much native token to move Agent Safe -> Agent Signer.
+
+        Pure: it only reads the balances already in `funds`, so the FSM step and
+        the `/funds-status` handler get the same answer for the same status.
+        The deficits assume the move succeeds: a `/funds-status` caller should
+        report them only after a move has actually succeeded, so a top-up that
+        keeps failing still shows as a deficit to fund.
+
+        :param funds: the status returned by `get_funds_status()`.
+        :param agent_need_extra: chain -> wei added to the Agent Signer need.
+        :param safe_native_extra: chain -> wei counted as Agent Safe native.
+        :param agent_need_override: chain -> wei replacing the Agent Signer need.
+        :return: the top-up decision per chain in `funds`.
+        """
+        agent_need_extra = agent_need_extra or {}
+        safe_native_extra = safe_native_extra or {}
+        agent_need_override = agent_need_override or {}
+        no_action = AgentTopUp(move=0, signer_deficit=None, safe_deficit=None)
+
+        topups: Dict[str, AgentTopUp] = {}
+        for chain_name, chain_requirements in funds.items():
+            signer = self._get_native_requirement(
+                chain_requirements,
+                self._account_name_to_actual_address(AGENT_ACCOUNT_NAME, chain_name),
+            )
+            safe = self._get_native_requirement(
+                chain_requirements,
+                self._account_name_to_actual_address(SAFE_ACCOUNT_NAME, chain_name),
+            )
+            if (
+                signer is None
+                or safe is None
+                or signer.deficit is None
+                or safe.balance is None
+            ):
+                topups[chain_name] = no_action
+                continue
+
+            need = agent_need_override.get(
+                chain_name, signer.deficit + agent_need_extra.get(chain_name, 0)
+            )
+            safe_native = safe.balance + safe_native_extra.get(chain_name, 0)
+
+            if need <= 0:
+                topups[chain_name] = no_action
+                continue
+
+            move = min(need, safe_native)
+            # Negative when the Agent Safe is short; the shortfall joins its deficit.
+            safe_remaining = safe_native - need
+            topups[chain_name] = AgentTopUp(
+                move=move,
+                signer_deficit=0,
+                safe_deficit=(
+                    max(safe.topup - safe_remaining, 0)
+                    if safe_remaining < safe.threshold
+                    else 0
+                ),
+            )
+
+        return topups

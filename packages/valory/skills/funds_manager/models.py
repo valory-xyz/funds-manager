@@ -58,6 +58,14 @@ class TokenRequirement(BaseModel):
     decimals: Optional[int] = None
 
 
+class AgentTopUp(BaseModel):
+    """The Agent Safe -> Agent Signer top-up decision for one chain."""
+
+    move: int  # wei to move Agent Safe -> Agent Signer; 0 = no tx
+    signer_deficit: Optional[int]  # Agent Signer native deficit; None = as read
+    safe_deficit: Optional[int]  # Agent Safe native deficit; None = as read
+
+
 class AccountRequirements(BaseModel):
     """All token requirements for a single account address."""
 
