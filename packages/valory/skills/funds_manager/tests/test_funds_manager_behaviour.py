@@ -28,7 +28,6 @@ import pytest
 from aea.configurations.base import PackageConfiguration
 from aea.test_tools.test_skill import BaseSkillTestCase
 from eth_abi import encode as abi_encode  # type: ignore[import-not-found]
-from pydantic import ValidationError  # type: ignore[import-not-found]
 from web3 import Web3
 
 from packages.valory.skills.funds_manager.behaviours import (
@@ -37,11 +36,7 @@ from packages.valory.skills.funds_manager.behaviours import (
     GET_FUNDS_STATUS_METHOD_NAME,
     MULTICALL_ADDR,
 )
-from packages.valory.skills.funds_manager.models import (
-    AgentTopUp,
-    FundRequirements,
-    TopUpAction,
-)
+from packages.valory.skills.funds_manager.models import AgentTopUp, FundRequirements
 from packages.valory.skills.funds_manager.tests import data_for_tests
 
 CURRENT_FILE_PATH = Path(__file__).resolve()
@@ -414,9 +409,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         shared_callable = self.behaviour.context.shared_state[
             GET_AGENT_TOPUP_METHOD_NAME
         ]
-        assert shared_callable(self._topup_funds(500, 0))["gnosis"].action == (
-            TopUpAction.SAFE_ALERT
-        )
+        assert shared_callable(self._topup_funds(500, 5000))["gnosis"].move == 1500
 
     @pytest.mark.parametrize(
         "signer_balance, safe_balance, expected",
@@ -426,7 +419,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 None,
                 5000,
                 AgentTopUp(
-                    action=TopUpAction.NONE,
                     move=0,
                     signer_deficit=None,
                     safe_deficit=None,
@@ -436,7 +428,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 500,
                 None,
                 AgentTopUp(
-                    action=TopUpAction.NONE,
                     move=0,
                     signer_deficit=None,
                     safe_deficit=None,
@@ -447,7 +438,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 1000,
                 0,
                 AgentTopUp(
-                    action=TopUpAction.NONE,
                     move=0,
                     signer_deficit=None,
                     safe_deficit=None,
@@ -458,7 +448,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 500,
                 6500,
                 AgentTopUp(
-                    action=TopUpAction.MOVE,
                     move=1500,
                     signer_deficit=0,
                     safe_deficit=0,
@@ -469,7 +458,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 500,
                 6000,
                 AgentTopUp(
-                    action=TopUpAction.MOVE,
                     move=1500,
                     signer_deficit=0,
                     safe_deficit=SAFE_TOPUP - 4500,
@@ -480,7 +468,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 500,
                 1500,
                 AgentTopUp(
-                    action=TopUpAction.MOVE,
                     move=1500,
                     signer_deficit=0,
                     safe_deficit=SAFE_TOPUP,
@@ -491,7 +478,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 500,
                 400,
                 AgentTopUp(
-                    action=TopUpAction.MOVE,
                     move=400,
                     signer_deficit=0,
                     safe_deficit=1100 + SAFE_TOPUP,
@@ -502,7 +488,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
                 500,
                 0,
                 AgentTopUp(
-                    action=TopUpAction.SAFE_ALERT,
                     move=0,
                     signer_deficit=0,
                     safe_deficit=1500 + SAFE_TOPUP,
@@ -529,7 +514,7 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         del safe_tokens[NATIVE]
         topups = self.behaviour.get_agent_topup(funds)
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.NONE, move=0, signer_deficit=None, safe_deficit=None
+            move=0, signer_deficit=None, safe_deficit=None
         )
 
     def test_get_agent_topup_agent_need_extra_is_added(self) -> None:
@@ -538,7 +523,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             self._topup_funds(1500, 5000), agent_need_extra={"gnosis": 300}
         )
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.MOVE,
             move=300,
             signer_deficit=0,
             safe_deficit=SAFE_TOPUP - 4700,
@@ -550,7 +534,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             self._topup_funds(500, 0), safe_native_extra={"gnosis": 2000}
         )
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.MOVE,
             move=1500,
             signer_deficit=0,
             safe_deficit=SAFE_TOPUP - 500,
@@ -564,7 +547,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
             agent_need_override={"gnosis": 700},
         )
         assert topups["gnosis"] == AgentTopUp(
-            action=TopUpAction.MOVE,
             move=700,
             signer_deficit=0,
             safe_deficit=SAFE_TOPUP - 4300,
@@ -575,15 +557,6 @@ class TestFundsManagerBehaviour(BaseSkillTestCase):
         topups = self.behaviour.get_agent_topup(
             self._topup_funds(500, 5000), agent_need_override={"gnosis": 0}
         )
-        assert topups["gnosis"].action == TopUpAction.NONE
-
-    @pytest.mark.parametrize(
-        "action, move",
-        [(TopUpAction.MOVE, 0), (TopUpAction.NONE, 1), (TopUpAction.SAFE_ALERT, 1)],
-    )
-    def test_agent_topup_rejects_move_inconsistent_with_action(
-        self, action: TopUpAction, move: int
-    ) -> None:
-        """`move` is positive exactly when `action` is MOVE."""
-        with pytest.raises(ValidationError, match="inconsistent"):
-            AgentTopUp(action=action, move=move, signer_deficit=0, safe_deficit=0)
+        assert topups["gnosis"] == AgentTopUp(
+            move=0, signer_deficit=None, safe_deficit=None
+        )

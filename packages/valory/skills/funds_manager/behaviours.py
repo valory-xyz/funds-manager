@@ -44,7 +44,6 @@ from packages.valory.skills.funds_manager.models import (
     Params,
     SAFE_ACCOUNT_NAME,
     TokenRequirement,
-    TopUpAction,
 )
 
 ERC20_DECIMALS_ABI = "decimals()(uint8)"
@@ -372,9 +371,9 @@ class FundsManagerBehaviour(SimpleBehaviour):
 
         Pure: it only reads the balances already in `funds`, so the FSM step and
         the `/funds-status` handler get the same answer for the same status.
-        `signer_deficit=0` assumes the move succeeds: a `/funds-status` caller
-        should report it only after a move has actually succeeded, so a top-up
-        that keeps failing still shows as a deficit to fund.
+        The deficits assume the move succeeds: a `/funds-status` caller should
+        report them only after a move has actually succeeded, so a top-up that
+        keeps failing still shows as a deficit to fund.
 
         :param funds: the status returned by `get_funds_status()`.
         :param agent_need_extra: chain -> wei added to the Agent Signer need.
@@ -385,9 +384,7 @@ class FundsManagerBehaviour(SimpleBehaviour):
         agent_need_extra = agent_need_extra or {}
         safe_native_extra = safe_native_extra or {}
         agent_need_override = agent_need_override or {}
-        no_action = AgentTopUp(
-            action=TopUpAction.NONE, move=0, signer_deficit=None, safe_deficit=None
-        )
+        no_action = AgentTopUp(move=0, signer_deficit=None, safe_deficit=None)
 
         topups: Dict[str, AgentTopUp] = {}
         for chain_name, chain_requirements in funds.items():
@@ -421,7 +418,6 @@ class FundsManagerBehaviour(SimpleBehaviour):
             # Negative when the Agent Safe is short; the shortfall joins its deficit.
             safe_remaining = safe_native - need
             topups[chain_name] = AgentTopUp(
-                action=TopUpAction.MOVE if move > 0 else TopUpAction.SAFE_ALERT,
                 move=move,
                 signer_deficit=0,
                 safe_deficit=(

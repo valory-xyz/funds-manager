@@ -19,7 +19,6 @@
 
 """This module contains the models for the 'funds_manager' skill."""
 
-from enum import Enum
 from typing import Any, Dict, ItemsView, Iterator, Optional
 
 from aea.exceptions import enforce
@@ -28,7 +27,6 @@ from pydantic import (  # type: ignore[import-not-found]
     BaseModel,
     RootModel,
     ValidationError,
-    model_validator,
 )
 
 from packages.valory.skills.abstract_round_abci.utils import check_type
@@ -60,30 +58,12 @@ class TokenRequirement(BaseModel):
     decimals: Optional[int] = None
 
 
-class TopUpAction(str, Enum):
-    """What the agent should do about its Agent Signer native balance on a chain."""
-
-    NONE = "none"  # nothing due, or a balance could not be read
-    MOVE = "move"  # move `move` wei Agent Safe -> Agent Signer
-    SAFE_ALERT = "safe_alert"  # Agent Safe native at 0, Agent Signer short
-
-
 class AgentTopUp(BaseModel):
     """The Agent Safe -> Agent Signer top-up decision for one chain."""
 
-    action: TopUpAction
-    move: int  # wei; > 0 exactly when action == MOVE
+    move: int  # wei to move Agent Safe -> Agent Signer; 0 = no tx
     signer_deficit: Optional[int]  # Agent Signer native deficit; None = as read
     safe_deficit: Optional[int]  # Agent Safe native deficit; None = as read
-
-    @model_validator(mode="after")
-    def _check_move_matches_action(self) -> "AgentTopUp":
-        """Reject a `move` that disagrees with `action`."""
-        if (self.action == TopUpAction.MOVE) != (self.move > 0):
-            raise ValueError(
-                f"move={self.move} is inconsistent with action={self.action.value}"
-            )
-        return self
 
 
 class AccountRequirements(BaseModel):
